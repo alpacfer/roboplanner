@@ -279,4 +279,129 @@ describe("TimelineSvg", () => {
     const tooltip = screen.getByTestId("timeline-tooltip");
     expect(tooltip.textContent).toContain("Start: 0 min, End: 10 min");
   });
+
+  it("hides checkpoints when a step is too narrow to display them", () => {
+    const narrowSegments: Segment[] = [
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Task start checkpoint",
+        startMin: 0,
+        endMin: 0,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+        operatorPhase: "START",
+      },
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Task",
+        startMin: 0,
+        endMin: 1,
+        kind: "step",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+      },
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Task end checkpoint",
+        startMin: 1,
+        endMin: 1,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+        operatorPhase: "END",
+      },
+    ];
+
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={narrowSegments} />);
+
+    const stepRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task"]',
+    ) as SVGRectElement;
+    const startCheckpointRect = document.querySelector<SVGRectElement>(
+      '[data-testid="timeline-rect"][data-segment-name="Task start checkpoint"]',
+    );
+    const endCheckpointRect = document.querySelector<SVGRectElement>(
+      '[data-testid="timeline-rect"][data-segment-name="Task end checkpoint"]',
+    );
+
+    const stepX = Number.parseFloat(stepRect.getAttribute("x") ?? "0");
+    const stepWidth = Number.parseFloat(stepRect.getAttribute("width") ?? "0");
+
+    expect(startCheckpointRect).toBeNull();
+    expect(endCheckpointRect).toBeNull();
+    expect(stepX).toBeCloseTo(84, 3);
+    expect(stepWidth).toBeCloseTo(10, 3);
+  });
+
+  it("anchors checkpoints to the correct step when step ids repeat", () => {
+    const duplicateIdSegments: Segment[] = [
+      {
+        runId: "R1",
+        stepId: "dup",
+        name: "Task A start checkpoint",
+        startMin: 10,
+        endMin: 10,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+        operatorPhase: "START",
+      },
+      {
+        runId: "R1",
+        stepId: "dup",
+        name: "Task A",
+        startMin: 10,
+        endMin: 20,
+        kind: "step",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+      },
+      {
+        runId: "R1",
+        stepId: "dup",
+        name: "Task A end checkpoint",
+        startMin: 20,
+        endMin: 20,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+        operatorPhase: "END",
+      },
+      {
+        runId: "R1",
+        stepId: "dup",
+        name: "Task B",
+        startMin: 30,
+        endMin: 31,
+        kind: "step",
+        requiresOperator: false,
+        operatorInvolvement: "NONE",
+      },
+    ];
+
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={duplicateIdSegments} />);
+
+    const taskBRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task B"]',
+    ) as SVGRectElement;
+    const startCheckpointRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task A start checkpoint"]',
+    ) as SVGRectElement;
+    const endCheckpointRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task A end checkpoint"]',
+    ) as SVGRectElement;
+
+    const taskBX = Number.parseFloat(taskBRect.getAttribute("x") ?? "0");
+    const startX = Number.parseFloat(startCheckpointRect.getAttribute("x") ?? "0");
+    const endX = Number.parseFloat(endCheckpointRect.getAttribute("x") ?? "0");
+    const endWidth = Number.parseFloat(endCheckpointRect.getAttribute("width") ?? "0");
+
+    expect(startX).toBeCloseTo(184, 3);
+    expect(endX).toBeCloseTo(276, 3);
+    expect(endX + endWidth).toBeLessThan(taskBX);
+  });
 });

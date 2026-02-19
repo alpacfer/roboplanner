@@ -33,15 +33,26 @@ interface TooltipState {
   segment: Segment;
 }
 
-interface CheckpointPresence {
-  hasStart: boolean;
-  hasEnd: boolean;
+interface CheckpointLookup {
+  startTimes: Set<string>;
+  endTimes: Set<string>;
+}
+
+interface StepSpan {
+  startMin: number;
+  endMin: number;
+}
+
+interface StepSpanLookup {
+  byStartTime: Map<string, StepSpan>;
+  byEndTime: Map<string, StepSpan>;
 }
 
 interface StepLayout {
   startCheckpointWidth: number;
   endCheckpointWidth: number;
   stepWidth: number;
+  totalWidth: number;
 }
 
 function involvementLabel(segment: Segment): string {
@@ -116,41 +127,59 @@ function buildAxisTicks(viewStartMin: number, viewEndMin: number, pxPerMin: numb
   return ticks;
 }
 
-function stepKey(runId: string, stepId: string): string {
-  return `${runId}::${stepId}`;
+function stepTimeKey(runId: string, stepId: string, atMin: number): string {
+  return `${runId}::${stepId}::${atMin}`;
 }
 
-function buildCheckpointPresence(segments: Segment[]): Map<string, CheckpointPresence> {
-  const presence = new Map<string, CheckpointPresence>();
+function buildCheckpointLookup(segments: Segment[]): CheckpointLookup {
+  const startTimes = new Set<string>();
+  const endTimes = new Set<string>();
+
   for (const segment of segments) {
     if (segment.kind !== "operator_checkpoint" || !segment.stepId) {
       continue;
     }
-    const key = stepKey(segment.runId, segment.stepId);
-    const current = presence.get(key) ?? { hasStart: false, hasEnd: false };
+    const key = stepTimeKey(segment.runId, segment.stepId, segment.startMin);
+
     if (segment.operatorPhase === "START") {
-      current.hasStart = true;
+      startTimes.add(key);
     }
     if (segment.operatorPhase === "END") {
-      current.hasEnd = true;
+      endTimes.add(key);
     }
-    presence.set(key, current);
   }
-  return presence;
+
+  return { startTimes, endTimes };
 }
 
-function buildStepSpans(segments: Segment[]): Map<string, { startMin: number; endMin: number }> {
-  const stepSpans = new Map<string, { startMin: number; endMin: number }>();
+function hasCheckpointAt(
+  lookup: CheckpointLookup,
+  runId: string,
+  stepId: string,
+  atMin: number,
+  phase: "START" | "END",
+): boolean {
+  const key = stepTimeKey(runId, stepId, atMin);
+  return phase === "START" ? lookup.startTimes.has(key) : lookup.endTimes.has(key);
+}
+
+function buildStepSpanLookup(segments: Segment[]): StepSpanLookup {
+  const byStartTime = new Map<string, StepSpan>();
+  const byEndTime = new Map<string, StepSpan>();
+
   for (const segment of segments) {
     if (segment.kind !== "step" || !segment.stepId) {
       continue;
     }
-    stepSpans.set(stepKey(segment.runId, segment.stepId), {
+    const span: StepSpan = {
       startMin: segment.startMin,
       endMin: segment.endMin,
-    });
+    };
+    byStartTime.set(stepTimeKey(segment.runId, segment.stepId, segment.startMin), span);
+    byEndTime.set(stepTimeKey(segment.runId, segment.stepId, segment.endMin), span);
   }
-  return stepSpans;
+
+  return { byStartTime, byEndTime };
 }
 
 function computeStepLayout(
@@ -158,10 +187,23 @@ function computeStepLayout(
   hasStartCheckpoint: boolean,
   hasEndCheckpoint: boolean,
 ): StepLayout {
+  const targetWidth = Math.max(rawWidthPx, MIN_STEP_WIDTH_PX);
+  const checkpointCount = Number(hasStartCheckpoint) + Number(hasEndCheckpoint);
+  const minWidthForCheckpoints = MIN_STEP_WIDTH_PX + checkpointCount * CHECKPOINT_WIDTH_PX;
+
+  if (checkpointCount > 0 && rawWidthPx < minWidthForCheckpoints) {
+    return {
+      startCheckpointWidth: 0,
+      endCheckpointWidth: 0,
+      stepWidth: targetWidth,
+      totalWidth: targetWidth,
+    };
+  }
+
   let startCheckpointWidth = hasStartCheckpoint ? CHECKPOINT_WIDTH_PX : 0;
   let endCheckpointWidth = hasEndCheckpoint ? CHECKPOINT_WIDTH_PX : 0;
   const markerTotal = startCheckpointWidth + endCheckpointWidth;
-  const markerBudget = Math.max(0, rawWidthPx - MIN_STEP_WIDTH_PX);
+  const markerBudget = Math.max(0, targetWidth - MIN_STEP_WIDTH_PX);
 
   if (markerTotal > markerBudget && markerTotal > 0) {
     const ratio = markerBudget / markerTotal;
@@ -169,10 +211,18 @@ function computeStepLayout(
     endCheckpointWidth *= ratio;
   }
 
+  let stepWidth = Math.max(MIN_STEP_WIDTH_PX, targetWidth - startCheckpointWidth - endCheckpointWidth);
+  let totalWidth = startCheckpointWidth + stepWidth + endCheckpointWidth;
+  if (totalWidth > targetWidth) {
+    stepWidth = Math.max(MIN_STEP_WIDTH_PX, stepWidth - (totalWidth - targetWidth));
+    totalWidth = startCheckpointWidth + stepWidth + endCheckpointWidth;
+  }
+
   return {
     startCheckpointWidth,
     endCheckpointWidth,
-    stepWidth: Math.max(MIN_STEP_WIDTH_PX, rawWidthPx - startCheckpointWidth - endCheckpointWidth),
+    stepWidth,
+    totalWidth,
   };
 }
 
@@ -190,8 +240,8 @@ function TimelineSvg({
   const width = TIMELINE_LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + TIMELINE_RIGHT_PAD;
   const height = TOP_PAD + AXIS_HEIGHT + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
   const visibleSegments = filterSegmentsByViewport(segments, viewStartMin, effectiveViewEndMin);
-  const checkpointPresenceByStep = buildCheckpointPresence(segments);
-  const stepSpansByStep = buildStepSpans(segments);
+  const checkpointLookup = buildCheckpointLookup(segments);
+  const stepSpanLookup = buildStepSpanLookup(segments);
   const axisTicks = buildAxisTicks(viewStartMin, effectiveViewEndMin, pxPerMin);
 
   return (
@@ -258,36 +308,74 @@ function TimelineSvg({
                 const widthPxRaw = segmentWidth(segment.startMin, segment.endMin, pxPerMin);
                 let x = xRaw;
                 let widthPx = widthPxRaw;
+                let skipRendering = false;
 
                 if (segment.kind === "step" && segment.stepId) {
-                  const presence = checkpointPresenceByStep.get(stepKey(segment.runId, segment.stepId));
+                  const hasStartCheckpoint = hasCheckpointAt(
+                    checkpointLookup,
+                    segment.runId,
+                    segment.stepId,
+                    segment.startMin,
+                    "START",
+                  );
+                  const hasEndCheckpoint = hasCheckpointAt(
+                    checkpointLookup,
+                    segment.runId,
+                    segment.stepId,
+                    segment.endMin,
+                    "END",
+                  );
                   const layout = computeStepLayout(
                     widthPxRaw,
-                    presence?.hasStart ?? false,
-                    presence?.hasEnd ?? false,
+                    hasStartCheckpoint,
+                    hasEndCheckpoint,
                   );
                   x = xRaw + layout.startCheckpointWidth;
                   widthPx = layout.stepWidth;
                 } else if (segment.kind === "operator_checkpoint") {
                   let markerWidth = CHECKPOINT_WIDTH_PX;
-                  if (segment.stepId) {
-                    const key = stepKey(segment.runId, segment.stepId);
-                    const presence = checkpointPresenceByStep.get(key);
-                    const span = stepSpansByStep.get(key);
-                    if (presence && span) {
+                  if (segment.stepId && (segment.operatorPhase === "START" || segment.operatorPhase === "END")) {
+                    const key = stepTimeKey(segment.runId, segment.stepId, segment.startMin);
+                    const span =
+                      segment.operatorPhase === "START"
+                        ? stepSpanLookup.byStartTime.get(key)
+                        : stepSpanLookup.byEndTime.get(key);
+
+                    if (span) {
+                      const hasStartCheckpoint = hasCheckpointAt(
+                        checkpointLookup,
+                        segment.runId,
+                        segment.stepId,
+                        span.startMin,
+                        "START",
+                      );
+                      const hasEndCheckpoint = hasCheckpointAt(
+                        checkpointLookup,
+                        segment.runId,
+                        segment.stepId,
+                        span.endMin,
+                        "END",
+                      );
+                      const startX = segmentX(span.startMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
                       const stepRawWidth = segmentWidth(span.startMin, span.endMin, pxPerMin);
-                      const layout = computeStepLayout(stepRawWidth, presence.hasStart, presence.hasEnd);
+                      const layout = computeStepLayout(stepRawWidth, hasStartCheckpoint, hasEndCheckpoint);
                       if (segment.operatorPhase === "START") {
-                        markerWidth = Math.max(1, layout.startCheckpointWidth);
-                        x = segmentX(span.startMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
+                        markerWidth = layout.startCheckpointWidth;
+                        x = startX;
                       } else if (segment.operatorPhase === "END") {
-                        markerWidth = Math.max(1, layout.endCheckpointWidth);
-                        const endX = segmentX(span.endMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
-                        x = endX - markerWidth;
+                        markerWidth = layout.endCheckpointWidth;
+                        x = startX + layout.totalWidth - markerWidth;
+                      }
+                      if (markerWidth <= 0) {
+                        skipRendering = true;
                       }
                     }
                   }
-                  widthPx = Math.max(1, markerWidth);
+                  widthPx = markerWidth;
+                }
+
+                if (skipRendering) {
+                  return null;
                 }
                 const fill =
                   segment.kind === "wait"

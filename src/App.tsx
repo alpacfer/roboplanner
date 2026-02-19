@@ -131,23 +131,6 @@ function App() {
       </div>
       <section className="viewport-panel">
         <h2>Viewport</h2>
-        <label htmlFor="zoom-px-per-min">Zoom (px/min)</label>
-        <input
-          id="zoom-px-per-min"
-          aria-label="Zoom (px/min)"
-          max={MAX_PX_PER_MIN}
-          min={MIN_PX_PER_MIN}
-          step={0.1}
-          type="number"
-          value={pxPerMin.toFixed(1)}
-          onChange={(event) => {
-            const value = Number.parseFloat(event.target.value);
-            if (Number.isNaN(value)) {
-              return;
-            }
-            setPxPerMin(Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, value)));
-          }}
-        />
         <button type="button" onClick={() => zoom(1.25)}>
           Zoom in
         </button>
@@ -155,7 +138,7 @@ function App() {
           Zoom out
         </button>
         <button type="button" onClick={fitToWindow}>
-          Fit to window
+          Fit
         </button>
       </section>
       <h2>Timeline</h2>

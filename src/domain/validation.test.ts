@@ -5,6 +5,7 @@ import {
   validatePlanSettings,
   validateRun,
   validateStep,
+  validateTemplateSteps,
 } from "./validation";
 
 describe("validation", () => {
@@ -72,5 +73,25 @@ describe("validation", () => {
         templateId: "plan-1",
       }),
     ).not.toHaveLength(0);
+  });
+
+  it("rejects duplicate step names in template", () => {
+    const errors = validateTemplateSteps([
+      {
+        id: "s1",
+        name: "Prep",
+        durationMin: 10,
+        operatorInvolvement: "NONE",
+      },
+      {
+        id: "s2",
+        name: " prep ",
+        durationMin: 5,
+        operatorInvolvement: "START",
+      },
+    ]);
+
+    expect(errors[0]).toContain("Step name must be unique.");
+    expect(errors[1]).toContain("Step name must be unique.");
   });
 });

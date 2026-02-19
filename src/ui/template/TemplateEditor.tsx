@@ -1,5 +1,5 @@
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
-import { validateStep } from "../../domain/validation";
+import { validateTemplateSteps } from "../../domain/validation";
 import type { OperatorInvolvement, Step } from "../../domain/types";
 
 interface TemplateEditorProps {
@@ -23,6 +23,8 @@ function nextStepId(): string {
 }
 
 function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
+  const stepErrors = validateTemplateSteps(steps);
+
   const updateStep = (index: number, updatedStep: Step) => {
     const nextSteps = steps.map((step, currentIndex) =>
       currentIndex === index ? updatedStep : step,
@@ -62,9 +64,6 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
   return (
     <section>
       <h2>Template Steps</h2>
-      <button type="button" onClick={addStep}>
-        Add step
-      </button>
       <table className="template-table">
         <thead>
           <tr>
@@ -78,7 +77,7 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
         </thead>
         <tbody>
           {steps.map((step, index) => {
-            const errors = validateStep(step);
+            const errors = stepErrors[index] ?? [];
 
             return (
               <tr data-testid="step-row" key={step.id}>
@@ -202,6 +201,11 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
           })}
         </tbody>
       </table>
+      <div className="template-actions">
+        <button type="button" onClick={addStep}>
+          Add step
+        </button>
+      </div>
     </section>
   );
 }

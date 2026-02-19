@@ -32,6 +32,29 @@ export function validateStep(step: Step): string[] {
   return errors;
 }
 
+export function validateTemplateSteps(steps: Step[]): string[][] {
+  const nameCounts = new Map<string, number>();
+
+  for (const step of steps) {
+    const normalizedName = step.name.trim().toLowerCase();
+    if (!normalizedName) {
+      continue;
+    }
+    nameCounts.set(normalizedName, (nameCounts.get(normalizedName) ?? 0) + 1);
+  }
+
+  return steps.map((step) => {
+    const errors = validateStep(step);
+    const normalizedName = step.name.trim().toLowerCase();
+
+    if (normalizedName && (nameCounts.get(normalizedName) ?? 0) > 1) {
+      errors.push("Step name must be unique.");
+    }
+
+    return errors;
+  });
+}
+
 export function validateRun(run: Run): string[] {
   const errors: string[] = [];
 

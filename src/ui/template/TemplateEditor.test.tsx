@@ -36,6 +36,20 @@ describe("TemplateEditor", () => {
     expect(screen.getAllByTestId("step-row")).toHaveLength(2);
   });
 
+  it("shows duplicate name validation when two steps share the same name", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add step" }));
+
+    const secondNameInput = screen.getByLabelText("Name 2") as HTMLInputElement;
+    await user.clear(secondNameInput);
+    await user.type(secondNameInput, "Prep");
+
+    const duplicateErrors = screen.getAllByText("Step name must be unique.");
+    expect(duplicateErrors).toHaveLength(2);
+  });
+
   it("editing duration updates state", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
