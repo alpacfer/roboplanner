@@ -1,0 +1,51 @@
+import type { PlanSettings, Run, Step } from "./types";
+
+export function isPositiveInteger(value: number): boolean {
+  return Number.isInteger(value) && value > 0;
+}
+
+export function isNonNegativeInteger(value: number): boolean {
+  return Number.isInteger(value) && value >= 0;
+}
+
+export function isNonEmptyName(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+export function validateStep(step: Step): string[] {
+  const errors: string[] = [];
+
+  if (!isNonEmptyName(step.name)) {
+    errors.push("Step name is required.");
+  }
+
+  if (!isPositiveInteger(step.durationMin)) {
+    errors.push("Step durationMin must be an integer greater than 0.");
+  }
+
+  return errors;
+}
+
+export function validateRun(run: Run): string[] {
+  const errors: string[] = [];
+
+  if (!isNonEmptyName(run.label)) {
+    errors.push("Run label is required.");
+  }
+
+  if (!isNonNegativeInteger(run.startMin)) {
+    errors.push("Run startMin must be an integer greater than or equal to 0.");
+  }
+
+  return errors;
+}
+
+export function validatePlanSettings(settings: PlanSettings): string[] {
+  const errors: string[] = [];
+
+  if (!isPositiveInteger(settings.operatorCapacity)) {
+    errors.push("Operator capacity must be an integer greater than or equal to 1.");
+  }
+
+  return errors;
+}
