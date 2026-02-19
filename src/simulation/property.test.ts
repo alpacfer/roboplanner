@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Plan, Segment } from "../domain/types";
+import type { OperatorInvolvement, Plan, Segment, Step } from "../domain/types";
 import { simulateDES } from "./engine";
 
 interface GeneratedPlan {
@@ -14,11 +14,11 @@ function buildGeneratedPlan(
   operatorFlags: boolean[],
   operatorCapacity: number,
 ): GeneratedPlan {
-  const template = stepDurations.map((durationMin, index) => ({
+  const template: Step[] = stepDurations.map((durationMin, index) => ({
     id: `s${index + 1}`,
     name: `Step${index + 1}`,
     durationMin,
-    operatorInvolvement: operatorFlags[index] ? "WHOLE" : "NONE",
+    operatorInvolvement: (operatorFlags[index] ? "WHOLE" : "NONE") as OperatorInvolvement,
     groupId: null,
   }));
   const runs = runStarts.map((startMin, index) => ({

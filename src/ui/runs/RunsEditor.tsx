@@ -7,11 +7,15 @@ interface RunsEditorProps {
   onChange: (runs: Run[]) => void;
 }
 
-let runIdCounter = 1000;
-
-function nextRunId(): string {
-  runIdCounter += 1;
-  return `run-${runIdCounter}`;
+function nextRunId(runs: Run[]): string {
+  const maxExisting = runs.reduce((maxId, run) => {
+    const match = /^run-(\d+)$/.exec(run.id);
+    if (!match) {
+      return maxId;
+    }
+    return Math.max(maxId, Number.parseInt(match[1], 10));
+  }, 0);
+  return `run-${maxExisting + 1}`;
 }
 
 function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
@@ -24,7 +28,7 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
     onChange([
       ...runs,
       {
-        id: nextRunId(),
+        id: nextRunId(runs),
         label: `R${runs.length + 1}`,
         startMin: 0,
         templateId,

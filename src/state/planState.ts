@@ -29,6 +29,16 @@ export const defaultPlan: Plan = {
   },
 };
 
+function clonePlan(plan: Plan): Plan {
+  return {
+    ...plan,
+    template: plan.template.map((step) => ({ ...step })),
+    stepGroups: plan.stepGroups.map((group) => ({ ...group })),
+    runs: plan.runs.map((run) => ({ ...run })),
+    settings: { ...plan.settings },
+  };
+}
+
 export function createInitialPlans(): Plan[] {
-  return [defaultPlan];
+  return [clonePlan(defaultPlan)];
 }

@@ -50,11 +50,12 @@ function isValidStepV2(value: unknown): value is Omit<Step, "groupId"> {
 }
 
 function isValidStepV3(value: unknown): value is Step {
-  if (!isValidStepV2(value)) {
+  if (!isObject(value) || !isValidStepV2(value)) {
     return false;
   }
 
-  return value.groupId === null || typeof value.groupId === "string";
+  const groupId = (value as Record<string, unknown>).groupId;
+  return groupId === null || typeof groupId === "string";
 }
 
 function isValidStepGroup(value: unknown): value is StepGroup {

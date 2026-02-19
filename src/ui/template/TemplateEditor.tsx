@@ -17,17 +17,26 @@ const OPERATOR_INVOLVEMENT_OPTIONS: Array<{ value: OperatorInvolvement; label: s
   { value: "START_END", label: "Start + End" },
 ];
 
-let stepIdCounter = 1000;
-let stepGroupIdCounter = 1000;
-
-function nextStepId(): string {
-  stepIdCounter += 1;
-  return `step-${stepIdCounter}`;
+function nextStepId(steps: Step[]): string {
+  const maxExisting = steps.reduce((maxId, step) => {
+    const match = /^step-(\d+)$/.exec(step.id);
+    if (!match) {
+      return maxId;
+    }
+    return Math.max(maxId, Number.parseInt(match[1], 10));
+  }, 0);
+  return `step-${maxExisting + 1}`;
 }
 
-function nextStepGroupId(): string {
-  stepGroupIdCounter += 1;
-  return `group-${stepGroupIdCounter}`;
+function nextStepGroupId(stepGroups: StepGroup[]): string {
+  const maxExisting = stepGroups.reduce((maxId, group) => {
+    const match = /^group-(\d+)$/.exec(group.id);
+    if (!match) {
+      return maxId;
+    }
+    return Math.max(maxId, Number.parseInt(match[1], 10));
+  }, 0);
+  return `group-${maxExisting + 1}`;
 }
 
 function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
@@ -54,7 +63,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
       [
         ...steps,
         {
-          id: nextStepId(),
+          id: nextStepId(steps),
           name: `Step ${steps.length + 1}`,
           durationMin: 1,
           operatorInvolvement: "NONE",
@@ -94,7 +103,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
     emitChange(steps, [
       ...stepGroups,
       {
-        id: nextStepGroupId(),
+        id: nextStepGroupId(stepGroups),
         name: `Group ${stepGroups.length + 1}`,
         color: DEFAULT_STEP_COLOR,
       },
@@ -113,8 +122,9 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
     const nextSteps = steps.map((step) => (step.groupId === groupId ? { ...step, groupId: null } : step));
     emitChange(nextSteps, nextGroups);
     setCollapsedGroups((current) => {
-      const { [groupId]: _, ...rest } = current;
-      return rest;
+      const next = { ...current };
+      delete next[groupId];
+      return next;
     });
   };
 
