@@ -1,0 +1,73 @@
+import type { Run, Segment } from "../../domain/types";
+
+interface TimelineSvgProps {
+  runs: Run[];
+  segments: Segment[];
+  pxPerMin: number;
+  viewStartMin?: number;
+}
+
+const LANE_HEIGHT = 44;
+const LANE_GAP = 10;
+const LEFT_PAD = 120;
+const RIGHT_PAD = 24;
+const TOP_PAD = 18;
+const BOTTOM_PAD = 18;
+const BAR_HEIGHT = 28;
+const LABEL_MIN_WIDTH = 56;
+
+function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0 }: TimelineSvgProps) {
+  const maxEndMin = segments.length > 0 ? Math.max(...segments.map((segment) => segment.endMin)) : 0;
+  const width = LEFT_PAD + (maxEndMin - viewStartMin) * pxPerMin + RIGHT_PAD;
+  const height = TOP_PAD + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
+
+  return (
+    <svg
+      aria-label="Timeline"
+      className="timeline-svg"
+      data-testid="timeline-svg"
+      height={height}
+      role="img"
+      width={Math.max(width, 400)}
+    >
+      {runs.map((run, laneIndex) => {
+        const laneY = TOP_PAD + laneIndex * (LANE_HEIGHT + LANE_GAP);
+        const runSegments = segments.filter((segment) => segment.runId === run.id);
+
+        return (
+          <g data-testid="timeline-lane" key={run.id} transform={`translate(0, ${laneY})`}>
+            <text className="lane-label" x={8} y={BAR_HEIGHT / 2 + 4}>
+              {run.label}
+            </text>
+            {runSegments.map((segment, segmentIndex) => {
+              const x = LEFT_PAD + (segment.startMin - viewStartMin) * pxPerMin;
+              const widthPx = (segment.endMin - segment.startMin) * pxPerMin;
+              const fill = segment.requiresOperator ? "#f57c00" : "#4f7cff";
+
+              return (
+                <g key={`${segment.runId}-${segmentIndex}`}>
+                  <rect
+                    data-testid="timeline-rect"
+                    fill={fill}
+                    height={BAR_HEIGHT}
+                    rx={4}
+                    width={widthPx}
+                    x={x}
+                    y={0}
+                  />
+                  {widthPx >= LABEL_MIN_WIDTH ? (
+                    <text className="segment-label" x={x + 6} y={BAR_HEIGHT / 2 + 4}>
+                      {segment.name}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            })}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export default TimelineSvg;

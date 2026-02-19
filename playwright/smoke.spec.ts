@@ -22,3 +22,23 @@ test("user creates 3 template steps and sees state update", async ({ page }) => 
   await expect(page.getByTestId("template-state")).toContainText('"name":"Soak"');
   await expect(page.getByTestId("template-state")).toContainText('"name":"Measure"');
 });
+
+test("create template and run baseline simulation shows 3 bars", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Name 1").fill("Prep");
+  await page.getByLabel("Duration 1").fill("10");
+  await page.getByLabel("Requires operator 1").check();
+
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Name 2").fill("Soak");
+  await page.getByLabel("Duration 2").fill("30");
+
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Name 3").fill("Measure");
+  await page.getByLabel("Duration 3").fill("20");
+  await page.getByLabel("Requires operator 3").check();
+
+  await page.getByRole("button", { name: "Simulate" }).click();
+  await expect(page.getByTestId("timeline-rect")).toHaveCount(3);
+});

@@ -55,6 +55,27 @@ body {
   color: #2e7d32;
 }
 
+.simulate-panel {
+  margin-top: 1rem;
+}
+
+.timeline-svg {
+  background: #ffffff;
+  border: 1px solid #cfd5df;
+}
+
+.lane-label {
+  fill: #1f2937;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.segment-label {
+  fill: #ffffff;
+  font-size: 11px;
+  pointer-events: none;
+}
+
 pre {
   background: #ffffff;
   border: 1px solid #cfd5df;
