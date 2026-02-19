@@ -7,8 +7,15 @@ export interface Step {
   name: string;
   durationMin: number;
   operatorInvolvement: OperatorInvolvement;
+  groupId: string | null;
   requiresOperator?: boolean;
   color?: string;
+}
+
+export interface StepGroup {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export interface Run {
@@ -27,6 +34,7 @@ export interface Plan {
   id: string;
   name: string;
   template: Step[];
+  stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
 }

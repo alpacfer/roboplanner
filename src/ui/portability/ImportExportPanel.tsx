@@ -1,20 +1,26 @@
 import { useState } from "react";
-import type { PlanSettings, Run, Step } from "../../domain/types";
+import type { PlanSettings, Run, Step, StepGroup } from "../../domain/types";
 import { deserializeScenarioData, serializeScenarioData } from "../../storage/schema";
 
 interface ImportExportPanelProps {
   template: Step[];
+  stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
-  onImport: (payload: { template: Step[]; runs: Run[]; settings: PlanSettings }) => void;
+  onImport: (payload: {
+    template: Step[];
+    stepGroups: StepGroup[];
+    runs: Run[];
+    settings: PlanSettings;
+  }) => void;
 }
 
-function ImportExportPanel({ template, runs, settings, onImport }: ImportExportPanelProps) {
+function ImportExportPanel({ template, stepGroups, runs, settings, onImport }: ImportExportPanelProps) {
   const [scenarioText, setScenarioText] = useState("");
   const [status, setStatus] = useState("");
 
   const handleExport = () => {
-    setScenarioText(serializeScenarioData({ template, runs, settings }));
+    setScenarioText(serializeScenarioData({ template, stepGroups, runs, settings }));
     setStatus("Scenario exported.");
   };
 
@@ -23,6 +29,7 @@ function ImportExportPanel({ template, runs, settings, onImport }: ImportExportP
       const parsed = deserializeScenarioData(scenarioText);
       onImport({
         template: parsed.template,
+        stepGroups: parsed.stepGroups,
         runs: parsed.runs,
         settings: parsed.settings,
       });

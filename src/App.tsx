@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
-import type { PlanSettings, Run, Segment, SimulationMetrics, Step } from "./domain/types";
+import type { PlanSettings, Run, Segment, SimulationMetrics, Step, StepGroup } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
 import MetricsPanel from "./ui/metrics/MetricsPanel";
@@ -19,9 +19,11 @@ function App() {
     initialPlan.template.map((step) => ({
       ...step,
       operatorInvolvement: normalizeOperatorInvolvement(step),
+      groupId: step.groupId ?? null,
       color: normalizeStepColor(step.color),
     })),
   );
+  const [stepGroups, setStepGroups] = useState<StepGroup[]>(initialPlan.stepGroups ?? []);
   const [runs, setRuns] = useState(initialPlan.runs);
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
   const [showWaits, setShowWaits] = useState(true);
@@ -34,6 +36,7 @@ function App() {
     const result = simulateDES({
       ...initialPlan,
       template,
+      stepGroups,
       runs,
       settings,
     });
@@ -43,6 +46,7 @@ function App() {
 
   const applyImportedScenario = (payload: {
     template: Step[];
+    stepGroups: StepGroup[];
     runs: Run[];
     settings: PlanSettings;
   }) => {
@@ -50,9 +54,11 @@ function App() {
       payload.template.map((step) => ({
         ...step,
         operatorInvolvement: normalizeOperatorInvolvement(step),
+        groupId: step.groupId ?? null,
         color: normalizeStepColor(step.color),
       })),
     );
+    setStepGroups(payload.stepGroups);
     setRuns(payload.runs);
     setSettings(payload.settings);
     setSegments([]);
@@ -60,9 +66,19 @@ function App() {
   };
 
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
+  const stepGroupsById = useMemo(
+    () => Object.fromEntries(stepGroups.map((group) => [group.id, group])),
+    [stepGroups],
+  );
   const stepColorsById = useMemo(
-    () => Object.fromEntries(template.map((step) => [step.id, normalizeStepColor(step.color)])),
-    [template],
+    () =>
+      Object.fromEntries(
+        template.map((step) => {
+          const groupColor = step.groupId ? stepGroupsById[step.groupId]?.color : undefined;
+          return [step.id, normalizeStepColor(groupColor ?? step.color)];
+        }),
+      ),
+    [template, stepGroupsById],
   );
   const timelineStartMin =
     visibleSegments.length > 0 ? Math.min(...visibleSegments.map((segment) => segment.startMin)) : 0;
@@ -95,7 +111,14 @@ function App() {
     <main className="app-shell">
       <h1>Test Timeline Planner</h1>
       <p>Current plan: {initialPlan.name}</p>
-      <TemplateEditor steps={template} onChange={setTemplate} />
+      <TemplateEditor
+        steps={template}
+        stepGroups={stepGroups}
+        onChange={({ steps, stepGroups: nextStepGroups }) => {
+          setTemplate(steps);
+          setStepGroups(nextStepGroups);
+        }}
+      />
       <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
       <section className="settings-panel">
         <h2>Simulation Settings</h2>
@@ -156,6 +179,7 @@ function App() {
       <ImportExportPanel
         settings={settings}
         template={template}
+        stepGroups={stepGroups}
         runs={runs}
         onImport={applyImportedScenario}
       />

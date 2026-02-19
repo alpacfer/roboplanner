@@ -6,10 +6,11 @@ const fixturePlan: Plan = {
   id: "plan-fixture",
   name: "Fixture Plan",
   template: [
-    { id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE" },
-    { id: "s2", name: "Soak", durationMin: 30, operatorInvolvement: "NONE" },
-    { id: "s3", name: "Measure", durationMin: 20, operatorInvolvement: "WHOLE" },
+    { id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null },
+    { id: "s2", name: "Soak", durationMin: 30, operatorInvolvement: "NONE", groupId: null },
+    { id: "s3", name: "Measure", durationMin: 20, operatorInvolvement: "WHOLE", groupId: null },
   ],
+  stepGroups: [],
   runs: [{ id: "R1", label: "R1", startMin: 0, templateId: "plan-fixture" }],
   settings: {
     operatorCapacity: 1,

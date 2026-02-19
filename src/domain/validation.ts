@@ -1,4 +1,4 @@
-import type { PlanSettings, Run, Step } from "./types";
+import type { PlanSettings, Run, Step, StepGroup } from "./types";
 import { normalizeOperatorInvolvement } from "./operator";
 
 export function isPositiveInteger(value: number): boolean {
@@ -49,6 +49,33 @@ export function validateTemplateSteps(steps: Step[]): string[][] {
 
     if (normalizedName && (nameCounts.get(normalizedName) ?? 0) > 1) {
       errors.push("Step name must be unique.");
+    }
+
+    return errors;
+  });
+}
+
+export function validateStepGroups(groups: StepGroup[]): string[][] {
+  const nameCounts = new Map<string, number>();
+
+  for (const group of groups) {
+    const normalizedName = group.name.trim().toLowerCase();
+    if (!normalizedName) {
+      continue;
+    }
+    nameCounts.set(normalizedName, (nameCounts.get(normalizedName) ?? 0) + 1);
+  }
+
+  return groups.map((group) => {
+    const errors: string[] = [];
+    const normalizedName = group.name.trim().toLowerCase();
+
+    if (!normalizedName) {
+      errors.push("Group name is required.");
+    }
+
+    if (normalizedName && (nameCounts.get(normalizedName) ?? 0) > 1) {
+      errors.push("Group name must be unique.");
     }
 
     return errors;

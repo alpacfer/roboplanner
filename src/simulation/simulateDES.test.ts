@@ -6,10 +6,11 @@ const fixturePlan: Plan = {
   id: "plan-des",
   name: "DES Fixture",
   template: [
-    { id: "op-a", name: "OpA", durationMin: 10, operatorInvolvement: "WHOLE" },
-    { id: "auto-b", name: "AutoB", durationMin: 20, operatorInvolvement: "NONE" },
-    { id: "op-c", name: "OpC", durationMin: 10, operatorInvolvement: "WHOLE" },
+    { id: "op-a", name: "OpA", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null },
+    { id: "auto-b", name: "AutoB", durationMin: 20, operatorInvolvement: "NONE", groupId: null },
+    { id: "op-c", name: "OpC", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null },
   ],
+  stepGroups: [],
   runs: [
     { id: "R1", label: "R1", startMin: 0, templateId: "plan-des" },
     { id: "R2", label: "R2", startMin: 0, templateId: "plan-des" },
@@ -134,8 +135,8 @@ describe("simulateDES", () => {
     const plan: Plan = {
       ...fixturePlan,
       template: [
-        { id: "s1", name: "StartOnly", durationMin: 5, operatorInvolvement: "START" },
-        { id: "s2", name: "Both", durationMin: 5, operatorInvolvement: "START_END" },
+        { id: "s1", name: "StartOnly", durationMin: 5, operatorInvolvement: "START", groupId: null },
+        { id: "s2", name: "Both", durationMin: 5, operatorInvolvement: "START_END", groupId: null },
       ],
       runs: [{ id: "R1", label: "R1", startMin: 0, templateId: "plan-des" }],
     };
@@ -178,9 +179,10 @@ describe("simulateDES", () => {
       id: "plan-end-delay",
       name: "End Delay",
       template: [
-        { id: "whole-step", name: "Whole", durationMin: 20, operatorInvolvement: "WHOLE" },
-        { id: "end-step", name: "EndOnly", durationMin: 1, operatorInvolvement: "END" },
+        { id: "whole-step", name: "Whole", durationMin: 20, operatorInvolvement: "WHOLE", groupId: null },
+        { id: "end-step", name: "EndOnly", durationMin: 1, operatorInvolvement: "END", groupId: null },
       ],
+      stepGroups: [],
       runs: [
         { id: "R1", label: "R1", startMin: 0, templateId: "plan-end-delay" },
         { id: "R2", label: "R2", startMin: 10, templateId: "plan-end-delay" },

@@ -10,9 +10,11 @@ export const defaultPlan: Plan = {
       name: "Prep",
       durationMin: 10,
       operatorInvolvement: "WHOLE",
+      groupId: null,
       color: DEFAULT_STEP_COLOR,
     },
   ],
+  stepGroups: [],
   runs: [
     {
       id: "run-1",

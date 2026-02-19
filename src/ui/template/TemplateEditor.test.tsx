@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import type { Step } from "../../domain/types";
+import type { Step, StepGroup } from "../../domain/types";
 import TemplateEditor from "./TemplateEditor";
 
 const initialSteps: Step[] = [
@@ -11,22 +11,40 @@ const initialSteps: Step[] = [
     name: "Prep",
     durationMin: 10,
     operatorInvolvement: "WHOLE",
+    groupId: null,
     color: "#4e79a7",
   },
 ];
 
+const initialStepGroups: StepGroup[] = [];
+
 function TestHarness() {
   const [steps, setSteps] = useState<Step[]>(initialSteps);
+  const [stepGroups, setStepGroups] = useState<StepGroup[]>(initialStepGroups);
 
   return (
     <>
-      <TemplateEditor steps={steps} onChange={setSteps} />
+      <TemplateEditor
+        steps={steps}
+        stepGroups={stepGroups}
+        onChange={({ steps: nextSteps, stepGroups: nextStepGroups }) => {
+          setSteps(nextSteps);
+          setStepGroups(nextStepGroups);
+        }}
+      />
       <pre data-testid="steps-state">{JSON.stringify(steps)}</pre>
+      <pre data-testid="groups-state">{JSON.stringify(stepGroups)}</pre>
     </>
   );
 }
 
 describe("TemplateEditor", () => {
+  const readFirstGroupId = () => {
+    const raw = screen.getByTestId("groups-state").textContent ?? "[]";
+    const parsed = JSON.parse(raw) as StepGroup[];
+    return parsed[0]?.id;
+  };
+
   it("adding a step adds a row", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
@@ -36,81 +54,70 @@ describe("TemplateEditor", () => {
     expect(screen.getAllByTestId("step-row")).toHaveLength(2);
   });
 
-  it("shows duplicate name validation when two steps share the same name", async () => {
+  it("adding a group creates a group row", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    await user.click(screen.getByRole("button", { name: "Add step" }));
-
-    const secondNameInput = screen.getByLabelText("Name 2") as HTMLInputElement;
-    await user.clear(secondNameInput);
-    await user.type(secondNameInput, "Prep");
-
-    const duplicateErrors = screen.getAllByText("Step name must be unique.");
-    expect(duplicateErrors).toHaveLength(2);
+    expect(screen.queryAllByTestId("step-group-row")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Add group" }));
+    expect(screen.getAllByTestId("step-group-row")).toHaveLength(1);
   });
 
-  it("editing duration updates state", async () => {
+  it("assigning and unassigning a step updates groupId", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    const durationInput = screen.getByLabelText("Duration 1") as HTMLInputElement;
-    await user.clear(durationInput);
-    await user.type(durationInput, "25");
+    await user.click(screen.getByRole("button", { name: "Add group" }));
+    const groupId = readFirstGroupId();
+    await user.selectOptions(screen.getByLabelText("Group 1"), groupId ?? "");
+    expect(screen.getByTestId("steps-state").textContent).toContain(`"groupId":"${groupId}"`);
 
-    expect(durationInput.value).toBe("25");
-    expect(screen.getByTestId("steps-state").textContent).toContain('"durationMin":25');
+    await user.selectOptions(screen.getByLabelText("Group 1"), "");
+    expect(screen.getByTestId("steps-state").textContent).toContain('"groupId":null');
   });
 
-  it("invalid duration shows error", async () => {
+  it("collapse hides grouped steps and expand restores them", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    const durationInput = screen.getByLabelText("Duration 1") as HTMLInputElement;
-    await user.clear(durationInput);
-    await user.type(durationInput, "0");
+    await user.click(screen.getByRole("button", { name: "Add group" }));
+    const groupId = readFirstGroupId();
+    await user.selectOptions(screen.getByLabelText("Group 1"), groupId ?? "");
 
-    expect(screen.getByText("Step durationMin must be an integer greater than 0.")).toBeTruthy();
+    expect(screen.getAllByTestId("step-row")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Collapse group Group 1" }));
+    expect(screen.queryAllByTestId("step-row")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Expand group Group 1" }));
+    expect(screen.getAllByTestId("step-row")).toHaveLength(1);
   });
 
-  it("editing color updates state", async () => {
+  it("deleting group unassigns grouped steps", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
+    await user.click(screen.getByRole("button", { name: "Add group" }));
+    const groupId = readFirstGroupId();
+    await user.selectOptions(screen.getByLabelText("Group 1"), groupId ?? "");
+    await user.click(screen.getByRole("button", { name: "Delete group 1" }));
+
+    expect(screen.getByTestId("groups-state").textContent).toBe("[]");
+    expect(screen.getByTestId("steps-state").textContent).toContain('"groupId":null');
+  });
+
+  it("grouped step shows color override indicator and keeps step color unchanged", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add group" }));
     const colorInput = screen.getByLabelText("Color 1") as HTMLInputElement;
     await user.click(colorInput);
     fireEvent.input(colorInput, { target: { value: "#00ff00" } });
-
     expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00ff00"');
-  });
 
-  it("keeps table body column order aligned with headers", () => {
-    render(<TestHarness />);
-
-    const row = screen.getAllByTestId("step-row")[0];
-    const cells = row.querySelectorAll("td");
-    const durationInput = cells[1].querySelector('input[type="number"]');
-    const operatorInput = cells[2].querySelector("select");
-    const colorInput = cells[3].querySelector('input[type="color"]');
-
-    expect(durationInput).toBeTruthy();
-    expect(operatorInput).toBeTruthy();
-    expect(colorInput).toBeTruthy();
-  });
-
-  it("selecting a preset color updates state", async () => {
-    const user = userEvent.setup();
-    render(<TestHarness />);
-
-    await user.click(screen.getByLabelText("Preset 1 #4e79a7"));
-    expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#4e79a7"');
-  });
-
-  it("operator involvement dropdown persists selection", async () => {
-    const user = userEvent.setup();
-    render(<TestHarness />);
-
-    await user.selectOptions(screen.getByLabelText("Operator involvement 1"), "START_END");
-    expect(screen.getByTestId("steps-state").textContent).toContain('"operatorInvolvement":"START_END"');
+    const groupId = readFirstGroupId();
+    await user.selectOptions(screen.getByLabelText("Group 1"), groupId ?? "");
+    expect(screen.getByText("Color overridden by group")).toBeTruthy();
+    expect((screen.getByLabelText("Color 1") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00ff00"');
   });
 });

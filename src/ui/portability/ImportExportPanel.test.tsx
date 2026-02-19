@@ -11,7 +11,8 @@ describe("ImportExportPanel", () => {
     render(
       <ImportExportPanel
         settings={{ operatorCapacity: 1, queuePolicy: "FIFO" }}
-        template={[{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE" }]}
+        template={[{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }]}
+        stepGroups={[]}
         runs={[{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }]}
         onImport={onImport}
       />,
@@ -40,7 +41,8 @@ describe("ImportExportPanel", () => {
     render(
       <ImportExportPanel
         settings={{ operatorCapacity: 1, queuePolicy: "FIFO" }}
-        template={[{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE" }]}
+        template={[{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }]}
+        stepGroups={[]}
         runs={[{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }]}
         onImport={onImport}
       />,

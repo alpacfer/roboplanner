@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { deserializeScenarioData, migrateScenarioData } from "./schema";
 
 const validPayload = {
-  version: 2 as const,
-  template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE" as const }],
+  version: 3 as const,
+  template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE" as const, groupId: null }],
+  stepGroups: [],
   runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
   settings: { operatorCapacity: 1, queuePolicy: "FIFO" as const },
 };
@@ -12,7 +13,7 @@ const validPayload = {
 describe("scenario schema robustness (property-based)", () => {
   it("rejects unsupported schema versions", () => {
     fc.assert(
-      fc.property(fc.integer().filter((version) => version !== 1 && version !== 2), (version) => {
+      fc.property(fc.integer().filter((version) => version !== 1 && version !== 2 && version !== 3), (version) => {
         expect(() =>
           migrateScenarioData({
             ...validPayload,
@@ -26,7 +27,7 @@ describe("scenario schema robustness (property-based)", () => {
 
   it("rejects payloads missing required fields", () => {
     fc.assert(
-      fc.property(fc.constantFrom("template", "runs", "settings"), (missingKey) => {
+      fc.property(fc.constantFrom("template", "stepGroups", "runs", "settings"), (missingKey) => {
         const mutated = { ...validPayload } as Record<string, unknown>;
         delete mutated[missingKey];
         expect(() => migrateScenarioData(mutated)).toThrow();

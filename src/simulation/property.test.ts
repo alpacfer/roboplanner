@@ -19,6 +19,7 @@ function buildGeneratedPlan(
     name: `Step${index + 1}`,
     durationMin,
     operatorInvolvement: operatorFlags[index] ? "WHOLE" : "NONE",
+    groupId: null,
   }));
   const runs = runStarts.map((startMin, index) => ({
     id: `R${index + 1}`,
@@ -32,6 +33,7 @@ function buildGeneratedPlan(
       id: "prop-plan",
       name: "Property Plan",
       template,
+      stepGroups: [],
       runs,
       settings: {
         operatorCapacity,

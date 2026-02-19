@@ -4,6 +4,7 @@ import {
   isPositiveInteger,
   validatePlanSettings,
   validateRun,
+  validateStepGroups,
   validateStep,
   validateTemplateSteps,
 } from "./validation";
@@ -19,6 +20,7 @@ describe("validation", () => {
         name: "Prep",
         durationMin: 0,
         operatorInvolvement: "NONE",
+        groupId: null,
       }),
     ).not.toHaveLength(0);
   });
@@ -62,6 +64,7 @@ describe("validation", () => {
         name: "",
         durationMin: 10,
         operatorInvolvement: "NONE",
+        groupId: null,
       }),
     ).not.toHaveLength(0);
 
@@ -82,16 +85,28 @@ describe("validation", () => {
         name: "Prep",
         durationMin: 10,
         operatorInvolvement: "NONE",
+        groupId: null,
       },
       {
         id: "s2",
         name: " prep ",
         durationMin: 5,
         operatorInvolvement: "START",
+        groupId: null,
       },
     ]);
 
     expect(errors[0]).toContain("Step name must be unique.");
     expect(errors[1]).toContain("Step name must be unique.");
+  });
+
+  it("rejects duplicate step group names", () => {
+    const errors = validateStepGroups([
+      { id: "g1", name: "Main", color: "#4e79a7" },
+      { id: "g2", name: " main ", color: "#f28e2b" },
+    ]);
+
+    expect(errors[0]).toContain("Group name must be unique.");
+    expect(errors[1]).toContain("Group name must be unique.");
   });
 });
