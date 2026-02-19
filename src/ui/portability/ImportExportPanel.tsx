@@ -141,15 +141,20 @@ function ImportExportPanel({ template, stepGroups, runs, settings, onImport }: I
           Import scenario
         </button>
       </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/json,.json,text/html,.html,.htm,text/plain"
-        aria-label="Scenario import file"
-        data-testid="scenario-file-input"
-        onChange={handleImportFile}
-      />
-      <p data-testid="scenario-status">{status}</p>
+      <label className="file-input-label">
+        Scenario import file
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json,text/html,.html,.htm,text/plain"
+          aria-label="Scenario import file"
+          data-testid="scenario-file-input"
+          onChange={handleImportFile}
+        />
+      </label>
+      <p className="portability-status" data-testid="scenario-status">
+        {status}
+      </p>
     </section>
   );
 }

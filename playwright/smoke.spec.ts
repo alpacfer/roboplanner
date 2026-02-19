@@ -28,6 +28,27 @@ test("app loads and default plan is visible", async ({ page }) => {
   await expect(page.getByText("Current plan: Default Plan")).toBeVisible();
 });
 
+test("duration and operator involvement fields do not overlap", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto("/");
+
+  const durationField = page.getByLabel("Step duration step-1");
+  const involvementField = page.getByLabel("Operator involvement step-1");
+  const durationBox = await durationField.boundingBox();
+  const involvementBox = await involvementField.boundingBox();
+  if (!durationBox || !involvementBox) {
+    throw new Error("Expected duration and operator fields to be visible.");
+  }
+
+  const overlaps =
+    durationBox.x < involvementBox.x + involvementBox.width &&
+    durationBox.x + durationBox.width > involvementBox.x &&
+    durationBox.y < involvementBox.y + involvementBox.height &&
+    durationBox.y + durationBox.height > involvementBox.y;
+
+  expect(overlaps).toBe(false);
+});
+
 test("user creates 3 template steps and sees state update", async ({ page }) => {
   await page.goto("/");
 
@@ -341,4 +362,82 @@ test("start+end involvement renders endpoint markers", async ({ page }) => {
 
   await expect(page.getByTestId("timeline-operator-start-checkpoint").first()).toBeVisible();
   await expect(page.getByTestId("timeline-operator-end-checkpoint").first()).toBeVisible();
+});
+
+test("long sequences do not stretch utility cards or utility button size on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await page.goto("/");
+
+  const utilityRail = page.getByTestId("workspace-side");
+  const settingsCard = page.getByTestId("utility-settings-card");
+  const metricsCard = page.getByTestId("utility-metrics-card");
+  const simulateButton = page.getByTestId("simulate-button");
+  const railOverflowY = await utilityRail.evaluate((element) => window.getComputedStyle(element).overflowY);
+  const settingsHeightBefore = await settingsCard.evaluate((element) => element.getBoundingClientRect().height);
+  const metricsHeightBefore = await metricsCard.evaluate((element) => element.getBoundingClientRect().height);
+  const buttonHeightBefore = await simulateButton.evaluate((element) => element.getBoundingClientRect().height);
+
+  for (let index = 0; index < 35; index += 1) {
+    await addStepButton(page).click();
+  }
+
+  const settingsHeightAfter = await settingsCard.evaluate((element) => element.getBoundingClientRect().height);
+  const metricsHeightAfter = await metricsCard.evaluate((element) => element.getBoundingClientRect().height);
+  const buttonHeightAfter = await simulateButton.evaluate((element) => element.getBoundingClientRect().height);
+
+  expect(railOverflowY === "auto" || railOverflowY === "scroll").toBeTruthy();
+  expect(Math.abs(settingsHeightBefore - settingsHeightAfter)).toBeLessThanOrEqual(2);
+  expect(Math.abs(metricsHeightBefore - metricsHeightAfter)).toBeLessThanOrEqual(2);
+  expect(Math.abs(buttonHeightBefore - buttonHeightAfter)).toBeLessThanOrEqual(2);
+});
+
+test("viewport controls are colocated with timeline header", async ({ page }) => {
+  await page.goto("/");
+
+  const timelinePanel = page.getByTestId("timeline-panel");
+  const timelineControls = page.getByTestId("timeline-controls");
+
+  await expect(timelinePanel).toBeVisible();
+  await expect(timelineControls).toBeVisible();
+  await expect(timelineControls.getByRole("button", { name: "Zoom in" })).toBeVisible();
+  await expect(timelineControls.getByRole("button", { name: "Zoom out" })).toBeVisible();
+  await expect(timelineControls.getByRole("button", { name: "Fit" })).toBeVisible();
+
+  const panelBox = await timelinePanel.boundingBox();
+  const controlsBox = await timelineControls.boundingBox();
+  if (!panelBox || !controlsBox) {
+    throw new Error("Expected timeline panel and controls bounding boxes.");
+  }
+  expect(controlsBox.y).toBeGreaterThanOrEqual(panelBox.y);
+  expect(controlsBox.y).toBeLessThanOrEqual(panelBox.y + 120);
+});
+
+test("timeline tooltip appears near cursor", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  const firstRect = page.getByTestId("timeline-rect").first();
+  await firstRect.hover();
+
+  const tooltip = page.getByTestId("timeline-tooltip");
+  await expect(tooltip).toBeVisible();
+  const rectBox = await firstRect.boundingBox();
+  const tooltipBox = await tooltip.boundingBox();
+  if (!rectBox || !tooltipBox) {
+    throw new Error("Expected rect and tooltip bounding boxes.");
+  }
+
+  const hoveredCenterX = rectBox.x + rectBox.width / 2;
+  const hoveredCenterY = rectBox.y + rectBox.height / 2;
+  expect(Math.abs(tooltipBox.x - (hoveredCenterX + 10))).toBeLessThanOrEqual(80);
+  expect(Math.abs(tooltipBox.y - (hoveredCenterY + 10))).toBeLessThanOrEqual(80);
+});
+
+test("utility rail scrolling is desktop-only and disabled on tablet layout", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto("/");
+
+  const utilityRail = page.getByTestId("workspace-side");
+  const overflowY = await utilityRail.evaluate((element) => window.getComputedStyle(element).overflowY);
+  expect(overflowY).toBe("visible");
 });

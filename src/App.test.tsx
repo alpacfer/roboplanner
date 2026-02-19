@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -30,10 +30,24 @@ function readFixture(name: string): string {
 }
 
 describe("App step sequences", () => {
+  it("renders utility rail and keeps viewport controls in the timeline header", () => {
+    render(<App />);
+
+    const utilityRail = screen.getByTestId("workspace-side");
+    const timelinePanel = screen.getByTestId("timeline-panel");
+    const timelineControls = within(timelinePanel).getByTestId("timeline-controls");
+
+    expect(utilityRail).toBeTruthy();
+    expect(within(timelineControls).getByRole("button", { name: "Zoom in" })).toBeTruthy();
+    expect(within(timelineControls).getByRole("button", { name: "Zoom out" })).toBeTruthy();
+    expect(within(timelineControls).getByRole("button", { name: "Fit" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Viewport" })).toBeNull();
+  });
+
   it("exports scenario with stepGroups and step sequence assignments", async () => {
     const user = userEvent.setup();
     render(<App />);
-    const createObjectURLMock = vi.fn(() => "blob:scenario");
+    const createObjectURLMock = vi.fn<(blob: Blob) => string>(() => "blob:scenario");
     const revokeObjectURLMock = vi.fn(() => undefined);
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -50,7 +64,11 @@ describe("App step sequences", () => {
     await user.click(screen.getByRole("button", { name: "Export scenario" }));
 
     expect(createObjectURLMock).toHaveBeenCalledTimes(1);
-    const scenarioBlob = createObjectURLMock.mock.calls[0][0] as Blob;
+    const firstCreateObjectUrlCall = createObjectURLMock.mock.calls[0];
+    if (!firstCreateObjectUrlCall || !(firstCreateObjectUrlCall[0] instanceof Blob)) {
+      throw new Error("Expected createObjectURL to be called with a Blob.");
+    }
+    const scenarioBlob = firstCreateObjectUrlCall[0];
     const scenarioText = await readBlobText(scenarioBlob);
     const parsed = JSON.parse(scenarioText) as {
       version: number;

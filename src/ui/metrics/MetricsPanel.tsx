@@ -17,20 +17,20 @@ function MetricsPanel({ metrics }: MetricsPanelProps) {
   return (
     <section className="metrics-panel">
       <h2>Metrics</h2>
-      <dl>
-        <div>
+      <dl className="metrics-grid">
+        <div className="metric-tile">
           <dt>Makespan</dt>
           <dd data-testid="metric-makespan">{makespan}</dd>
         </div>
-        <div>
+        <div className="metric-tile">
           <dt>Operator Busy Time</dt>
           <dd data-testid="metric-operator-busy">{operatorBusyMin}</dd>
         </div>
-        <div>
+        <div className="metric-tile">
           <dt>Operator Utilization</dt>
           <dd data-testid="metric-operator-utilization">{formatUtilization(operatorUtilization)}</dd>
         </div>
-        <div>
+        <div className="metric-tile">
           <dt>Total Waiting Time</dt>
           <dd data-testid="metric-total-waiting">{totalWaitingMin}</dd>
         </div>

@@ -128,6 +128,34 @@ describe("TimelineSvg", () => {
     expect(tooltip.textContent).toContain("Requires operator: Yes");
   });
 
+  it("keeps tooltip near cursor for regular hover coordinates", () => {
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={segments} />);
+    const firstRect = screen.getAllByTestId("timeline-rect")[0];
+
+    fireEvent.mouseEnter(firstRect, { clientX: 200, clientY: 150 });
+    const tooltip = screen.getByTestId("timeline-tooltip");
+    const left = Number.parseFloat(tooltip.style.left);
+    const top = Number.parseFloat(tooltip.style.top);
+
+    expect(Math.abs(left - 210)).toBeLessThanOrEqual(40);
+    expect(Math.abs(top - 160)).toBeLessThanOrEqual(40);
+  });
+
+  it("clamps tooltip position to remain within viewport bounds", () => {
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={segments} />);
+    const firstRect = screen.getAllByTestId("timeline-rect")[0];
+
+    fireEvent.mouseEnter(firstRect, { clientX: window.innerWidth - 2, clientY: window.innerHeight - 2 });
+    const tooltip = screen.getByTestId("timeline-tooltip");
+    const left = Number.parseFloat(tooltip.style.left);
+    const top = Number.parseFloat(tooltip.style.top);
+
+    expect(left).toBeGreaterThanOrEqual(12);
+    expect(top).toBeGreaterThanOrEqual(12);
+    expect(left).toBeLessThanOrEqual(window.innerWidth - 12);
+    expect(top).toBeLessThanOrEqual(window.innerHeight - 12);
+  });
+
   it("does not render label text when name does not fit bar width", () => {
     const tinySegments: Segment[] = [
       {

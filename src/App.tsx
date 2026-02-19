@@ -30,6 +30,7 @@ function App() {
   const [pxPerMin, setPxPerMin] = useState(10);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
+  const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const timelineBoxRef = useRef<HTMLDivElement | null>(null);
 
   const simulate = () => {
@@ -119,85 +120,141 @@ function App() {
 
   return (
     <main className="app-shell">
-      <h1>Test Timeline Planner</h1>
-      <p>Current plan: {initialPlan.name}</p>
-      <TemplateEditor
-        steps={template}
-        stepGroups={stepGroups}
-        onChange={({ steps, stepGroups: nextStepGroups }) => {
-          setTemplate(steps);
-          setStepGroups(nextStepGroups);
-        }}
-      />
-      <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
-      <section className="settings-panel">
-        <h2>Simulation Settings</h2>
-        <label htmlFor="operator-capacity">Operator capacity</label>
-        <input
-          id="operator-capacity"
-          min={1}
-          step={1}
-          type="number"
-          value={settings.operatorCapacity}
-          onChange={(event) => {
-            const value = Number.parseInt(event.target.value, 10);
-            setSettings((prev) => ({
-              ...prev,
-              operatorCapacity: Number.isNaN(value) ? 1 : Math.max(1, value),
-            }));
-          }}
-        />
-        <label className="checkbox-label" htmlFor="show-waits">
-          <input
-            checked={showWaits}
-            id="show-waits"
-            type="checkbox"
-            onChange={(event) => setShowWaits(event.target.checked)}
+      <header className="panel-card app-hero">
+        <div className="app-hero-content">
+          <p className="app-eyebrow">RoboPlanner</p>
+          <h1>Test Timeline Planner</h1>
+        </div>
+        <p className="plan-pill">Current plan: {initialPlan.name}</p>
+      </header>
+
+      <div className="workspace-grid">
+        <section className="workspace-main" data-testid="workspace-main">
+          <div className="panel-card">
+            <TemplateEditor
+              steps={template}
+              stepGroups={stepGroups}
+              onChange={({ steps, stepGroups: nextStepGroups }) => {
+                setTemplate(steps);
+                setStepGroups(nextStepGroups);
+              }}
+            />
+          </div>
+          <div className="panel-card">
+            <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
+          </div>
+        </section>
+
+        <aside className="workspace-side" data-testid="workspace-side">
+          <section className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
+            <h2>Simulation Settings</h2>
+            <div className="settings-fields">
+              <label className="field-row" htmlFor="operator-capacity">
+                <span>Operator capacity</span>
+                <input
+                  id="operator-capacity"
+                  min={1}
+                  step={1}
+                  type="number"
+                  value={settings.operatorCapacity}
+                  onChange={(event) => {
+                    const value = Number.parseInt(event.target.value, 10);
+                    setSettings((prev) => ({
+                      ...prev,
+                      operatorCapacity: Number.isNaN(value) ? 1 : Math.max(1, value),
+                    }));
+                  }}
+                />
+              </label>
+              <label className="checkbox-label" htmlFor="show-waits">
+                <input
+                  checked={showWaits}
+                  id="show-waits"
+                  type="checkbox"
+                  onChange={(event) => setShowWaits(event.target.checked)}
+                />
+                Show wait segments
+              </label>
+            </div>
+            <button className="simulate-button" data-testid="simulate-button" type="button" onClick={simulate}>
+              Simulate
+            </button>
+          </section>
+
+          <div className="panel-card utility-card utility-metrics-card" data-testid="utility-metrics-card">
+            <MetricsPanel metrics={metrics} />
+          </div>
+          <div className="panel-card utility-card utility-portability-card" data-testid="utility-portability-card">
+            <ImportExportPanel
+              settings={settings}
+              template={template}
+              stepGroups={stepGroups}
+              runs={runs}
+              onImport={applyImportedScenario}
+            />
+          </div>
+        </aside>
+      </div>
+
+      <section className="panel-card timeline-panel" data-testid="timeline-panel">
+        <div className="timeline-panel-header">
+          <div className="timeline-panel-title">
+            <h2>Timeline</h2>
+            <p>{visibleSegments.length} segments visible</p>
+          </div>
+          <div className="viewport-actions" data-testid="timeline-controls">
+            <button type="button" onClick={() => zoom(1.25)}>
+              Zoom in
+            </button>
+            <button type="button" onClick={() => zoom(0.8)}>
+              Zoom out
+            </button>
+            <button type="button" onClick={fitToWindow}>
+              Fit
+            </button>
+          </div>
+        </div>
+        <div ref={timelineBoxRef} className="timeline-box" data-testid="timeline-box">
+          <TimelineSvg
+            pxPerMin={pxPerMin}
+            runs={runs}
+            segments={visibleSegments}
+            stepColorsById={stepColorsById}
+            stepGroupNamesByStepId={stepGroupNamesByStepId}
+            viewStartMin={timelineStartMin}
+            viewEndMin={timelineEndMin}
           />
-          Show wait segments
-        </label>
+        </div>
       </section>
-      <div className="simulate-panel">
-        <button type="button" onClick={simulate}>
-          Simulate
+
+      <section className="panel-card debug-panel">
+        <button
+          aria-controls="developer-tools-body"
+          aria-expanded={isDebugDrawerOpen}
+          className="debug-toggle"
+          data-testid="debug-drawer-toggle"
+          type="button"
+          onClick={() => setIsDebugDrawerOpen((current) => !current)}
+        >
+          {isDebugDrawerOpen ? "Hide developer tools" : "Show developer tools"}
         </button>
-      </div>
-      <section className="viewport-panel">
-        <h2>Viewport</h2>
-        <button type="button" onClick={() => zoom(1.25)}>
-          Zoom in
-        </button>
-        <button type="button" onClick={() => zoom(0.8)}>
-          Zoom out
-        </button>
-        <button type="button" onClick={fitToWindow}>
-          Fit
-        </button>
+        <div
+          id="developer-tools-body"
+          className={`debug-drawer-content ${isDebugDrawerOpen ? "is-open" : ""}`}
+          data-testid="debug-drawer-content"
+        >
+          <div className="debug-state-grid">
+            <section className="debug-state-card">
+              <h3>Template State</h3>
+              <pre data-testid="template-state">{JSON.stringify(template)}</pre>
+            </section>
+            <section className="debug-state-card">
+              <h3>Runs State</h3>
+              <pre data-testid="runs-state">{JSON.stringify(runs)}</pre>
+            </section>
+          </div>
+        </div>
       </section>
-      <h2>Timeline</h2>
-      <div ref={timelineBoxRef} className="timeline-box" data-testid="timeline-box">
-        <TimelineSvg
-          pxPerMin={pxPerMin}
-          runs={runs}
-          segments={visibleSegments}
-          stepColorsById={stepColorsById}
-          stepGroupNamesByStepId={stepGroupNamesByStepId}
-          viewStartMin={timelineStartMin}
-          viewEndMin={timelineEndMin}
-        />
-      </div>
-      <MetricsPanel metrics={metrics} />
-      <ImportExportPanel
-        settings={settings}
-        template={template}
-        stepGroups={stepGroups}
-        runs={runs}
-        onImport={applyImportedScenario}
-      />
-      <h2>Template State</h2>
-      <pre data-testid="template-state">{JSON.stringify(template)}</pre>
-      <h2>Runs State</h2>
-      <pre data-testid="runs-state">{JSON.stringify(runs)}</pre>
     </main>
   );
 }

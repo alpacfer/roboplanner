@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { DEFAULT_STEP_COLOR } from "../../domain/colors";
 import type { Run, Segment } from "../../domain/types";
 import { segmentWidth, segmentX } from "./scale";
@@ -27,10 +27,16 @@ const APPROX_CHAR_WIDTH = 5;
 const MIN_AXIS_LABEL_SPACING_PX = 46;
 const CHECKPOINT_WIDTH_PX = 8;
 const MIN_STEP_WIDTH_PX = 2;
+const TOOLTIP_OFFSET_PX = 10;
+const TOOLTIP_MARGIN_PX = 12;
+const TOOLTIP_FALLBACK_WIDTH_PX = 240;
+const TOOLTIP_FALLBACK_HEIGHT_PX = 140;
 
 interface TooltipState {
-  x: number;
-  y: number;
+  clientX: number;
+  clientY: number;
+  left: number;
+  top: number;
   segment: Segment;
 }
 
@@ -227,6 +233,37 @@ function computeStepLayout(
   };
 }
 
+function clampTooltipPosition(
+  clientX: number,
+  clientY: number,
+  tooltipWidth: number,
+  tooltipHeight: number,
+): { left: number; top: number } {
+  const nextLeft = clientX + TOOLTIP_OFFSET_PX;
+  const nextTop = clientY + TOOLTIP_OFFSET_PX;
+
+  if (typeof window === "undefined") {
+    return { left: nextLeft, top: nextTop };
+  }
+
+  const maxLeft = window.innerWidth - tooltipWidth - TOOLTIP_MARGIN_PX;
+  const maxTop = window.innerHeight - tooltipHeight - TOOLTIP_MARGIN_PX;
+  let left = nextLeft;
+  let top = nextTop;
+
+  if (left + tooltipWidth + TOOLTIP_MARGIN_PX > window.innerWidth) {
+    left = clientX - tooltipWidth - TOOLTIP_OFFSET_PX;
+  }
+  if (top + tooltipHeight + TOOLTIP_MARGIN_PX > window.innerHeight) {
+    top = clientY - tooltipHeight - TOOLTIP_OFFSET_PX;
+  }
+
+  return {
+    left: Math.max(TOOLTIP_MARGIN_PX, Math.min(left, maxLeft)),
+    top: Math.max(TOOLTIP_MARGIN_PX, Math.min(top, maxTop)),
+  };
+}
+
 function TimelineSvg({
   runs,
   segments,
@@ -237,6 +274,7 @@ function TimelineSvg({
   viewEndMin,
 }: TimelineSvgProps) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const effectiveViewEndMin =
     viewEndMin ?? (segments.length > 0 ? Math.max(...segments.map((segment) => segment.endMin)) : viewStartMin);
   const width = TIMELINE_LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + TIMELINE_RIGHT_PAD;
@@ -245,6 +283,38 @@ function TimelineSvg({
   const checkpointLookup = buildCheckpointLookup(segments);
   const stepSpanLookup = buildStepSpanLookup(segments);
   const axisTicks = buildAxisTicks(viewStartMin, effectiveViewEndMin, pxPerMin);
+  const buildTooltipState = (clientX: number, clientY: number, segment: Segment): TooltipState => {
+    const tooltipWidth = tooltipRef.current?.offsetWidth ?? TOOLTIP_FALLBACK_WIDTH_PX;
+    const tooltipHeight = tooltipRef.current?.offsetHeight ?? TOOLTIP_FALLBACK_HEIGHT_PX;
+    const { left, top } = clampTooltipPosition(clientX, clientY, tooltipWidth, tooltipHeight);
+    return {
+      clientX,
+      clientY,
+      left,
+      top,
+      segment,
+    };
+  };
+
+  useLayoutEffect(() => {
+    if (!tooltip || !tooltipRef.current) {
+      return;
+    }
+    const tooltipWidth = tooltipRef.current.offsetWidth || TOOLTIP_FALLBACK_WIDTH_PX;
+    const tooltipHeight = tooltipRef.current.offsetHeight || TOOLTIP_FALLBACK_HEIGHT_PX;
+    const { left, top } = clampTooltipPosition(tooltip.clientX, tooltip.clientY, tooltipWidth, tooltipHeight);
+    if (left !== tooltip.left || top !== tooltip.top) {
+      setTooltip((current) =>
+        current
+          ? {
+              ...current,
+              left,
+              top,
+            }
+          : current,
+      );
+    }
+  }, [tooltip]);
 
   return (
     <div className="timeline-wrap">
@@ -299,9 +369,18 @@ function TimelineSvg({
         {runs.map((run, laneIndex) => {
           const laneY = TOP_PAD + AXIS_HEIGHT + laneIndex * (LANE_HEIGHT + LANE_GAP);
           const runSegments = visibleSegments.filter((segment) => segment.runId === run.id);
+          const laneTrackWidth = Math.max(0, Math.max(width, 400) - TIMELINE_LEFT_PAD - TIMELINE_RIGHT_PAD);
 
           return (
             <g data-testid="timeline-lane" key={run.id} transform={`translate(0, ${laneY})`}>
+              <rect
+                className="lane-track"
+                height={BAR_HEIGHT}
+                rx={8}
+                width={laneTrackWidth}
+                x={TIMELINE_LEFT_PAD}
+                y={0}
+              />
               <text className="lane-label" x={8} y={BAR_HEIGHT / 2 + 4}>
                 {run.label}
               </text>
@@ -389,6 +468,7 @@ function TimelineSvg({
                 return (
                   <g key={`${segment.runId}-${segmentIndex}`}>
                     <rect
+                      className={`timeline-segment timeline-segment-${segment.kind}`}
                       data-testid="timeline-rect"
                       data-segment-kind={segment.kind}
                       data-segment-name={segment.name}
@@ -399,20 +479,12 @@ function TimelineSvg({
                       x={x}
                       y={0}
                       onMouseEnter={(event) => {
-                        setTooltip({
-                          x: event.clientX,
-                          y: event.clientY,
-                          segment,
-                        });
+                        setTooltip(buildTooltipState(event.clientX, event.clientY, segment));
                       }}
                       onMouseMove={(event) => {
                         setTooltip((current) =>
                           current
-                            ? {
-                                ...current,
-                                x: event.clientX,
-                                y: event.clientY,
-                              }
+                            ? buildTooltipState(event.clientX, event.clientY, segment)
                             : current,
                         );
                       }}
@@ -455,9 +527,10 @@ function TimelineSvg({
       </svg>
       {tooltip ? (
         <div
+          ref={tooltipRef}
           className="timeline-tooltip"
           data-testid="timeline-tooltip"
-          style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}
+          style={{ left: tooltip.left, top: tooltip.top }}
         >
           <div className="tooltip-title">{tooltip.segment.name}</div>
           <div className="tooltip-row">

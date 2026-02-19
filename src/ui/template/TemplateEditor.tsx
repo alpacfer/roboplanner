@@ -478,8 +478,11 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
   return (
     <section className="template-editor">
       <div className="template-editor-header">
-        <h2>Template Steps</h2>
-        <button type="button" onClick={addGroup}>
+        <div className="template-editor-title-group">
+          <h2>Template Steps</h2>
+          <p>Organize and reorder your process as sequence cards.</p>
+        </div>
+        <button className="template-add-sequence-button" type="button" onClick={addGroup}>
           Add sequence
         </button>
       </div>
@@ -514,6 +517,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                 <div className="template-group-header">
                   <button
                     aria-label={`${collapsed ? "Expand" : "Collapse"} sequence ${group.name}`}
+                    className="group-toggle-button"
                     type="button"
                     onClick={() => setCollapsedGroups((current) => ({ ...current, [key]: !collapsed }))}
                   >
@@ -567,7 +571,12 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                     {errorCount > 0 ? `${errorCount} issues` : "No issues"}
                   </span>
                   <span className="group-count-label">{groupSteps.length} steps</span>
-                  <button aria-label={`Delete sequence ${groupIndex + 1}`} type="button" onClick={() => deleteGroup(group.id)}>
+                  <button
+                    aria-label={`Delete sequence ${groupIndex + 1}`}
+                    className="group-delete-button"
+                    type="button"
+                    onClick={() => deleteGroup(group.id)}
+                  >
                     Delete sequence
                   </button>
                 </div>
@@ -597,7 +606,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                   </StepCardDropZone>
                 ) : null}
                 <div className="group-footer-actions">
-                  <button type="button" onClick={() => addStep(key)}>
+                  <button className="add-step-button" type="button" onClick={() => addStep(key)}>
                     Add step to {group.name}
                   </button>
                 </div>
@@ -618,6 +627,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                 <div className="template-group-header">
                   <button
                     aria-label={`${collapsed ? "Expand" : "Collapse"} sequence Unsequenced`}
+                    className="group-toggle-button"
                     type="button"
                     onClick={() => setCollapsedGroups((current) => ({ ...current, [UNGROUPED_KEY]: !collapsed }))}
                   >
@@ -657,7 +667,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                   </StepCardDropZone>
                 ) : null}
                 <div className="group-footer-actions">
-                  <button type="button" onClick={() => addStep(UNGROUPED_KEY)}>
+                  <button className="add-step-button" type="button" onClick={() => addStep(UNGROUPED_KEY)}>
                     Add unsequenced step
                   </button>
                 </div>
