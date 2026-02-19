@@ -70,6 +70,16 @@ function App() {
     () => Object.fromEntries(stepGroups.map((group) => [group.id, group])),
     [stepGroups],
   );
+  const stepGroupNamesByStepId = useMemo(
+    () =>
+      Object.fromEntries(
+        template.map((step) => [
+          step.id,
+          step.groupId ? stepGroupsById[step.groupId]?.name : undefined,
+        ]),
+      ),
+    [template, stepGroupsById],
+  );
   const stepColorsById = useMemo(
     () =>
       Object.fromEntries(
@@ -171,6 +181,7 @@ function App() {
           runs={runs}
           segments={visibleSegments}
           stepColorsById={stepColorsById}
+          stepGroupNamesByStepId={stepGroupNamesByStepId}
           viewStartMin={timelineStartMin}
           viewEndMin={timelineEndMin}
         />

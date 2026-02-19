@@ -114,7 +114,7 @@ describe("TimelineSvg", () => {
   });
 
   it("shows tooltip with segment details on hover", () => {
-    render(<TimelineSvg pxPerMin={10} runs={runs} segments={segments} />);
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={segments} stepGroupNamesByStepId={{ s1: "Main Group" }} />);
     const firstRect = screen.getAllByTestId("timeline-rect")[0];
 
     fireEvent.mouseEnter(firstRect, { clientX: 200, clientY: 150 });
@@ -122,6 +122,8 @@ describe("TimelineSvg", () => {
 
     expect(tooltip.textContent).toContain("Prep");
     expect(tooltip.textContent).toContain("Start: 0 min, End: 10 min");
+    expect(tooltip.textContent).toContain("Duration:10 min");
+    expect(tooltip.textContent).toContain("Group:Main Group");
     expect(tooltip.textContent).toContain("Whole step");
     expect(tooltip.textContent).toContain("Requires operator: Yes");
   });

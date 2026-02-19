@@ -8,6 +8,7 @@ interface TimelineSvgProps {
   runs: Run[];
   segments: Segment[];
   stepColorsById?: Record<string, string>;
+  stepGroupNamesByStepId?: Record<string, string | undefined>;
   pxPerMin: number;
   viewStartMin?: number;
   viewEndMin?: number;
@@ -230,6 +231,7 @@ function TimelineSvg({
   runs,
   segments,
   stepColorsById = {},
+  stepGroupNamesByStepId = {},
   pxPerMin,
   viewStartMin = 0,
   viewEndMin,
@@ -466,6 +468,20 @@ function TimelineSvg({
             <span className="tooltip-key">End:</span>
             <span className="tooltip-value">{tooltip.segment.endMin} min</span>
           </div>
+          {tooltip.segment.kind === "step" ? (
+            <>
+              <div className="tooltip-row">
+                <span className="tooltip-key">Duration:</span>
+                <span className="tooltip-value">{tooltip.segment.endMin - tooltip.segment.startMin} min</span>
+              </div>
+              <div className="tooltip-row">
+                <span className="tooltip-key">Group:</span>
+                <span className="tooltip-value">
+                  {tooltip.segment.stepId ? (stepGroupNamesByStepId[tooltip.segment.stepId] ?? "Ungrouped") : "N/A"}
+                </span>
+              </div>
+            </>
+          ) : null}
           <div className="tooltip-row">
             <span className="tooltip-key">Operator:</span>
             <span
