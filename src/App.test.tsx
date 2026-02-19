@@ -9,8 +9,7 @@ describe("App step groups", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Add group" }));
-    const groupOption = screen.getByRole("option", { name: "Group 1" });
-    await user.selectOptions(screen.getByLabelText("Group 1"), groupOption);
+    await user.click(screen.getByRole("button", { name: "Move step 1 to previous group" }));
     await user.click(screen.getByRole("button", { name: "Export scenario" }));
 
     const scenarioText = (screen.getByLabelText("Scenario JSON") as HTMLTextAreaElement).value;
@@ -54,7 +53,7 @@ describe("App step groups", () => {
     await user.paste(payload);
     await user.click(screen.getByRole("button", { name: "Import scenario" }));
 
-    expect(screen.getAllByTestId("step-group-row")).toHaveLength(1);
+    expect(screen.getAllByTestId("template-group-card")).toHaveLength(1);
     expect(screen.getByTestId("template-state").textContent).toContain('"groupId":"g1"');
   });
 

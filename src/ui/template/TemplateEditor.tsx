@@ -1,4 +1,24 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
 import type { OperatorInvolvement, Step, StepGroup } from "../../domain/types";
@@ -16,6 +36,7 @@ const OPERATOR_INVOLVEMENT_OPTIONS: Array<{ value: OperatorInvolvement; label: s
   { value: "END", label: "End only" },
   { value: "START_END", label: "Start + End" },
 ];
+const UNGROUPED_KEY = "ungrouped";
 
 function nextStepId(steps: Step[]): string {
   const maxExisting = steps.reduce((maxId, step) => {
@@ -39,64 +60,330 @@ function nextStepGroupId(stepGroups: StepGroup[]): string {
   return `group-${maxExisting + 1}`;
 }
 
+function flattenBuckets(orderedKeys: string[], buckets: Record<string, Step[]>): Step[] {
+  return orderedKeys.flatMap((key) => buckets[key] ?? []);
+}
+
+function StepCardDropZone({ bucketKeyValue, children }: { bucketKeyValue: string; children: ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `bucket:${bucketKeyValue}` });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`template-group-body ${isOver ? "is-drop-target" : ""}`}
+      data-testid={`group-body-${bucketKeyValue}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface StepItemProps {
+  step: Step;
+  isGrouped: boolean;
+  stepIndex: number;
+  errors: string[];
+  totalSteps: number;
+  onUpdate: (stepId: string, next: Step) => void;
+  onMoveWithinGroup: (stepId: string, direction: -1 | 1) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveAcrossGroups: (stepId: string, direction: -1 | 1) => void;
+  canMoveToPreviousGroup: boolean;
+  canMoveToNextGroup: boolean;
+  onDelete: (stepId: string) => void;
+}
+
+function StepItem({
+  step,
+  isGrouped,
+  stepIndex,
+  errors,
+  totalSteps,
+  onUpdate,
+  onMoveWithinGroup,
+  canMoveUp,
+  canMoveDown,
+  onMoveAcrossGroups,
+  canMoveToPreviousGroup,
+  canMoveToNextGroup,
+  onDelete,
+}: StepItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={style}
+      className={`template-step-item ${isDragging ? "is-dragging" : ""}`}
+      data-testid="step-item"
+      data-step-id={step.id}
+    >
+      <div className="template-step-top">
+        <button
+          type="button"
+          className="drag-handle"
+          aria-label={`Drag step ${step.name}`}
+          {...attributes}
+          {...listeners}
+        >
+          Drag
+        </button>
+        <div className="template-step-title-row">
+          <label className="field-row">
+            <span>Name</span>
+            <input
+              aria-label={`Step name ${step.id}`}
+              type="text"
+              value={step.name}
+              onChange={(event) => onUpdate(step.id, { ...step, name: event.target.value })}
+            />
+          </label>
+          <label className="field-row duration-field">
+            <span>Duration (min)</span>
+            <input
+              aria-label={`Step duration ${step.id}`}
+              min={0}
+              step={1}
+              type="number"
+              value={step.durationMin}
+              onChange={(event) => {
+                const parsedValue = Number.parseInt(event.target.value, 10);
+                onUpdate(step.id, {
+                  ...step,
+                  durationMin: Number.isNaN(parsedValue) ? 0 : parsedValue,
+                });
+              }}
+            />
+          </label>
+          <label className="field-row operator-field">
+            <span>Operator involvement</span>
+            <select
+              aria-label={`Operator involvement ${step.id}`}
+              value={step.operatorInvolvement}
+              onChange={(event) =>
+                onUpdate(step.id, {
+                  ...step,
+                  operatorInvolvement: event.target.value as OperatorInvolvement,
+                })
+              }
+            >
+              {OPERATOR_INVOLVEMENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div className="template-step-lower">
+        {isGrouped ? (
+          <div className="inherited-color-note">
+            <small>Step color is inherited from the group.</small>
+          </div>
+        ) : (
+          <div className="step-color-cell">
+            <label className="field-row color-field">
+              <span>Step color</span>
+              <input
+                aria-label={`Step color ${step.id}`}
+                type="color"
+                value={normalizeStepColor(step.color)}
+                onChange={(event) => {
+                  onUpdate(step.id, {
+                    ...step,
+                    color: event.target.value,
+                  });
+                }}
+              />
+            </label>
+            <div className="step-color-presets">
+              {STEP_COLOR_PRESETS.map((presetColor) => (
+                <button
+                  key={presetColor}
+                  aria-label={`Preset ${step.id} ${presetColor}`}
+                  className="color-preset-button"
+                  style={{ backgroundColor: presetColor }}
+                  type="button"
+                  onClick={() => {
+                    onUpdate(step.id, {
+                      ...step,
+                      color: presetColor,
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="row-actions">
+          <button
+            aria-label={`Move step ${stepIndex + 1} up`}
+            disabled={!canMoveUp}
+            type="button"
+            onClick={() => onMoveWithinGroup(step.id, -1)}
+          >
+            Up
+          </button>
+          <button
+            aria-label={`Move step ${stepIndex + 1} down`}
+            disabled={!canMoveDown}
+            type="button"
+            onClick={() => onMoveWithinGroup(step.id, 1)}
+          >
+            Down
+          </button>
+          <button
+            aria-label={`Move step ${stepIndex + 1} to previous group`}
+            disabled={!canMoveToPreviousGroup}
+            type="button"
+            onClick={() => onMoveAcrossGroups(step.id, -1)}
+          >
+            Previous group
+          </button>
+          <button
+            aria-label={`Move step ${stepIndex + 1} to next group`}
+            disabled={!canMoveToNextGroup}
+            type="button"
+            onClick={() => onMoveAcrossGroups(step.id, 1)}
+          >
+            Next group
+          </button>
+          <button
+            aria-label={`Delete step ${stepIndex + 1}`}
+            disabled={totalSteps <= 1}
+            type="button"
+            onClick={() => onDelete(step.id)}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+      {errors.length > 0 ? (
+        <ul className="inline-errors">
+          {errors.map((error) => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      ) : (
+        <span className="valid-step">OK</span>
+      )}
+    </article>
+  );
+}
+
 function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const stepErrors = validateTemplateSteps(steps);
   const groupErrors = validateStepGroups(stepGroups);
 
-  const groupsById = useMemo(
-    () => Object.fromEntries(stepGroups.map((group) => [group.id, group])),
-    [stepGroups],
+  const orderedBucketKeys = useMemo(() => [...stepGroups.map((group) => group.id), UNGROUPED_KEY], [stepGroups]);
+  const groupsById = useMemo(() => Object.fromEntries(stepGroups.map((group) => [group.id, group])), [stepGroups]);
+  const stepIndexById = useMemo(() => Object.fromEntries(steps.map((step, index) => [step.id, index])), [steps]);
+  const stepsByBucketKey = useMemo(() => {
+    const initial = Object.fromEntries(orderedBucketKeys.map((key) => [key, [] as Step[]]));
+    for (const step of steps) {
+      const key = step.groupId && groupsById[step.groupId] ? step.groupId : UNGROUPED_KEY;
+      initial[key].push(step);
+    }
+    return initial;
+  }, [groupsById, orderedBucketKeys, steps]);
+  const bucketKeyByStepId = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(stepsByBucketKey).flatMap(([key, bucketSteps]) => bucketSteps.map((step) => [step.id, key])),
+      ),
+    [stepsByBucketKey],
+  );
+  const activeStep = useMemo(() => steps.find((step) => step.id === activeStepId) ?? null, [activeStepId, steps]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const emitChange = (nextSteps: Step[], nextStepGroups: StepGroup[]) => {
     onChange({ steps: nextSteps, stepGroups: nextStepGroups });
   };
 
-  const updateStep = (index: number, updatedStep: Step) => {
-    const nextSteps = steps.map((step, currentIndex) => (currentIndex === index ? updatedStep : step));
+  const updateStep = (stepId: string, updatedStep: Step) => {
+    const nextSteps = steps.map((step) => (step.id === stepId ? updatedStep : step));
     emitChange(nextSteps, stepGroups);
   };
 
-  const addStep = () => {
+  const addStep = (targetBucketKey: string) => {
+    const targetGroupId = targetBucketKey === UNGROUPED_KEY ? null : targetBucketKey;
+    const nextStepsByBucketKey = Object.fromEntries(
+      orderedBucketKeys.map((key) => [key, [...(stepsByBucketKey[key] ?? [])]]),
+    );
+    nextStepsByBucketKey[targetBucketKey].push({
+      id: nextStepId(steps),
+      name: `Step ${steps.length + 1}`,
+      durationMin: 1,
+      operatorInvolvement: "NONE",
+      groupId: targetGroupId,
+      color: DEFAULT_STEP_COLOR,
+    });
+    emitChange(flattenBuckets(orderedBucketKeys, nextStepsByBucketKey), stepGroups);
+  };
+
+  const deleteStep = (stepId: string) => {
     emitChange(
-      [
-        ...steps,
-        {
-          id: nextStepId(steps),
-          name: `Step ${steps.length + 1}`,
-          durationMin: 1,
-          operatorInvolvement: "NONE",
-          groupId: null,
-          color: DEFAULT_STEP_COLOR,
-        },
-      ],
+      steps.filter((step) => step.id !== stepId),
       stepGroups,
     );
   };
 
-  const deleteStep = (index: number) => {
-    emitChange(
-      steps.filter((_, currentIndex) => currentIndex !== index),
-      stepGroups,
-    );
-  };
-
-  const moveStep = (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= steps.length) {
+  const moveStepWithinGroup = (stepId: string, direction: -1 | 1) => {
+    const bucketKeyValue = bucketKeyByStepId[stepId];
+    if (!bucketKeyValue) {
       return;
     }
-
-    const nextSteps = [...steps];
-    const [movedStep] = nextSteps.splice(index, 1);
-    nextSteps.splice(nextIndex, 0, movedStep);
-    emitChange(nextSteps, stepGroups);
+    const sourceBucket = stepsByBucketKey[bucketKeyValue];
+    const sourceIndex = sourceBucket.findIndex((step) => step.id === stepId);
+    const destinationIndex = sourceIndex + direction;
+    if (sourceIndex < 0 || destinationIndex < 0 || destinationIndex >= sourceBucket.length) {
+      return;
+    }
+    const nextStepsByBucketKey = Object.fromEntries(
+      orderedBucketKeys.map((key) => [key, [...(stepsByBucketKey[key] ?? [])]]),
+    );
+    nextStepsByBucketKey[bucketKeyValue] = arrayMove(nextStepsByBucketKey[bucketKeyValue], sourceIndex, destinationIndex);
+    emitChange(flattenBuckets(orderedBucketKeys, nextStepsByBucketKey), stepGroups);
   };
 
-  const updateStepGroup = (stepIndex: number, groupIdValue: string) => {
-    const nextGroupId = groupIdValue.trim() === "" ? null : groupIdValue;
-    updateStep(stepIndex, { ...steps[stepIndex], groupId: nextGroupId });
+  const moveStepAcrossGroups = (stepId: string, direction: -1 | 1) => {
+    const sourceBucketKey = bucketKeyByStepId[stepId];
+    if (!sourceBucketKey) {
+      return;
+    }
+    const sourceBucketIndex = orderedBucketKeys.indexOf(sourceBucketKey);
+    const targetBucketIndex = sourceBucketIndex + direction;
+    if (sourceBucketIndex < 0 || targetBucketIndex < 0 || targetBucketIndex >= orderedBucketKeys.length) {
+      return;
+    }
+    const targetBucketKey = orderedBucketKeys[targetBucketIndex];
+    const nextStepsByBucketKey = Object.fromEntries(
+      orderedBucketKeys.map((key) => [key, [...(stepsByBucketKey[key] ?? [])]]),
+    );
+    const sourceSteps = nextStepsByBucketKey[sourceBucketKey];
+    const stepIndex = sourceSteps.findIndex((step) => step.id === stepId);
+    if (stepIndex < 0) {
+      return;
+    }
+    const [movedStep] = sourceSteps.splice(stepIndex, 1);
+    nextStepsByBucketKey[targetBucketKey].push({
+      ...movedStep,
+      groupId: targetBucketKey === UNGROUPED_KEY ? null : targetBucketKey,
+    });
+    emitChange(flattenBuckets(orderedBucketKeys, nextStepsByBucketKey), stepGroups);
   };
 
   const addGroup = () => {
@@ -128,254 +415,250 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
     });
   };
 
-  const renderStepRow = (step: Step, index: number) => {
-    const errors = stepErrors[index] ?? [];
-    const group = step.groupId ? groupsById[step.groupId] : undefined;
-    const effectiveColor = normalizeStepColor(group?.color ?? step.color);
-    const ownColor = normalizeStepColor(step.color);
-    const grouped = Boolean(group);
+  const onDragStart = (event: DragStartEvent) => {
+    setActiveStepId(String(event.active.id));
+  };
 
-    return (
-      <tr data-testid="step-row" key={step.id}>
-        <td>
-          <input
-            aria-label={`Name ${index + 1}`}
-            type="text"
-            value={step.name}
-            onChange={(event) => {
-              updateStep(index, { ...step, name: event.target.value });
-            }}
-          />
-        </td>
-        <td>
-          <input
-            aria-label={`Duration ${index + 1}`}
-            min={0}
-            step={1}
-            type="number"
-            value={step.durationMin}
-            onChange={(event) => {
-              const parsedValue = Number.parseInt(event.target.value, 10);
-              updateStep(index, {
-                ...step,
-                durationMin: Number.isNaN(parsedValue) ? 0 : parsedValue,
-              });
-            }}
-          />
-        </td>
-        <td>
-          <select
-            aria-label={`Operator involvement ${index + 1}`}
-            value={step.operatorInvolvement}
-            onChange={(event) => {
-              updateStep(index, {
-                ...step,
-                operatorInvolvement: event.target.value as OperatorInvolvement,
-              });
-            }}
-          >
-            {OPERATOR_INVOLVEMENT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </td>
-        <td>
-          <select
-            aria-label={`Group ${index + 1}`}
-            value={step.groupId ?? ""}
-            onChange={(event) => updateStepGroup(index, event.target.value)}
-          >
-            <option value="">None</option>
-            {stepGroups.map((groupOption) => (
-              <option key={groupOption.id} value={groupOption.id}>
-                {groupOption.name}
-              </option>
-            ))}
-          </select>
-        </td>
-        <td>
-          <div className="step-color-cell">
-            <input
-              aria-label={`Color ${index + 1}`}
-              disabled={grouped}
-              type="color"
-              value={grouped ? effectiveColor : ownColor}
-              onChange={(event) => {
-                updateStep(index, {
-                  ...step,
-                  color: event.target.value,
-                });
-              }}
-            />
-            <div className="step-color-presets">
-              {STEP_COLOR_PRESETS.map((presetColor) => (
-                <button
-                  key={presetColor}
-                  aria-label={`Preset ${index + 1} ${presetColor}`}
-                  className="color-preset-button"
-                  disabled={grouped}
-                  style={{ backgroundColor: presetColor }}
-                  type="button"
-                  onClick={() => {
-                    updateStep(index, {
-                      ...step,
-                      color: presetColor,
-                    });
-                  }}
-                />
-              ))}
-            </div>
-            {grouped ? <small>Color overridden by group</small> : null}
-          </div>
-        </td>
-        <td>
-          <div className="row-actions">
-            <button
-              aria-label={`Move step ${index + 1} up`}
-              disabled={index === 0}
-              type="button"
-              onClick={() => moveStep(index, -1)}
-            >
-              Up
-            </button>
-            <button
-              aria-label={`Move step ${index + 1} down`}
-              disabled={index === steps.length - 1}
-              type="button"
-              onClick={() => moveStep(index, 1)}
-            >
-              Down
-            </button>
-            <button
-              aria-label={`Delete step ${index + 1}`}
-              disabled={steps.length <= 1}
-              type="button"
-              onClick={() => deleteStep(index)}
-            >
-              Delete
-            </button>
-          </div>
-        </td>
-        <td>
-          {errors.length > 0 ? (
-            <ul className="inline-errors">
-              {errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          ) : (
-            <span className="valid-step">OK</span>
-          )}
-        </td>
-      </tr>
+  const onDragEnd = (event: DragEndEvent) => {
+    setActiveStepId(null);
+    const activeId = String(event.active.id);
+    const overId = event.over ? String(event.over.id) : null;
+    if (!overId) {
+      return;
+    }
+
+    const sourceBucketKey = bucketKeyByStepId[activeId];
+    if (!sourceBucketKey) {
+      return;
+    }
+
+    let destinationBucketKey = sourceBucketKey;
+    let destinationIndex = stepsByBucketKey[sourceBucketKey].length - 1;
+
+    if (overId.startsWith("bucket:")) {
+      destinationBucketKey = overId.slice("bucket:".length);
+      destinationIndex = stepsByBucketKey[destinationBucketKey].length;
+    } else {
+      const targetBucketKey = bucketKeyByStepId[overId];
+      if (!targetBucketKey) {
+        return;
+      }
+      destinationBucketKey = targetBucketKey;
+      destinationIndex = stepsByBucketKey[targetBucketKey].findIndex((step) => step.id === overId);
+      if (destinationIndex < 0) {
+        destinationIndex = stepsByBucketKey[targetBucketKey].length;
+      }
+    }
+
+    const nextStepsByBucketKey = Object.fromEntries(
+      orderedBucketKeys.map((key) => [key, [...(stepsByBucketKey[key] ?? [])]]),
     );
+    const sourceSteps = nextStepsByBucketKey[sourceBucketKey];
+    const sourceIndex = sourceSteps.findIndex((step) => step.id === activeId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    const [movedStep] = sourceSteps.splice(sourceIndex, 1);
+    if (sourceBucketKey === destinationBucketKey) {
+      const normalizedDestinationIndex = Math.max(0, Math.min(destinationIndex, sourceSteps.length));
+      sourceSteps.splice(normalizedDestinationIndex, 0, movedStep);
+    } else {
+      const targetSteps = nextStepsByBucketKey[destinationBucketKey];
+      const normalizedDestinationIndex = Math.max(0, Math.min(destinationIndex, targetSteps.length));
+      targetSteps.splice(normalizedDestinationIndex, 0, {
+        ...movedStep,
+        groupId: destinationBucketKey === UNGROUPED_KEY ? null : destinationBucketKey,
+      });
+    }
+
+    emitChange(flattenBuckets(orderedBucketKeys, nextStepsByBucketKey), stepGroups);
   };
 
   return (
-    <section>
-      <h2>Template Steps</h2>
-      <table className="template-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Duration (min)</th>
-            <th>Operator involvement</th>
-            <th>Group</th>
-            <th>Color</th>
-            <th>Actions</th>
-            <th>Validation</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stepGroups.map((group, groupIndex) => {
-            const groupedSteps = steps
-              .map((step, stepIndex) => ({ step, stepIndex }))
-              .filter(({ step }) => step.groupId === group.id);
-            const collapsed = collapsedGroups[group.id] ?? false;
-            const errors = groupErrors[groupIndex] ?? [];
-
-            return (
-              <Fragment key={group.id}>
-                <tr className="step-group-row" data-testid="step-group-row">
-                  <td colSpan={3}>
-                    <button
-                      aria-label={`${collapsed ? "Expand" : "Collapse"} group ${group.name}`}
-                      type="button"
-                      onClick={() =>
-                        setCollapsedGroups((current) => ({ ...current, [group.id]: !collapsed }))
-                      }
-                    >
-                      {collapsed ? "Expand" : "Collapse"}
-                    </button>{" "}
-                    <strong>{group.name}</strong> ({groupedSteps.length} steps)
-                  </td>
-                  <td>
-                    <input
-                      aria-label={`Group name ${groupIndex + 1}`}
-                      type="text"
-                      value={group.name}
-                      onChange={(event) =>
-                        updateGroup(groupIndex, {
-                          ...group,
-                          name: event.target.value,
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      aria-label={`Group color ${groupIndex + 1}`}
-                      type="color"
-                      value={normalizeStepColor(group.color)}
-                      onChange={(event) =>
-                        updateGroup(groupIndex, {
-                          ...group,
-                          color: event.target.value,
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <button
-                      aria-label={`Delete group ${groupIndex + 1}`}
-                      type="button"
-                      onClick={() => deleteGroup(group.id)}
-                    >
-                      Delete group
-                    </button>
-                  </td>
-                  <td>
-                    {errors.length > 0 ? (
-                      <ul className="inline-errors">
-                        {errors.map((error) => (
-                          <li key={error}>{error}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="valid-step">OK</span>
-                    )}
-                  </td>
-                </tr>
-                {!collapsed ? groupedSteps.map(({ step, stepIndex }) => renderStepRow(step, stepIndex)) : null}
-              </Fragment>
-            );
-          })}
-          {steps
-            .map((step, index) => ({ step, index }))
-            .filter(({ step }) => step.groupId === null)
-            .map(({ step, index }) => renderStepRow(step, index))}
-        </tbody>
-      </table>
-      <div className="template-actions">
-        <button type="button" onClick={addStep}>
-          Add step
-        </button>
+    <section className="template-editor">
+      <div className="template-editor-header">
+        <h2>Template Steps</h2>
         <button type="button" onClick={addGroup}>
           Add group
         </button>
       </div>
+      <DndContext
+        collisionDetection={closestCenter}
+        sensors={sensors}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
+        <div className="template-groups-grid">
+          {stepGroups.map((group, groupIndex) => {
+            const key = group.id;
+            const groupSteps = stepsByBucketKey[key] ?? [];
+            const collapsed = collapsedGroups[key] ?? false;
+            const ownErrors = groupErrors[groupIndex] ?? [];
+            const stepErrorCount = groupSteps.reduce((count, step) => {
+              const stepErrorsForRow = stepErrors[stepIndexById[step.id]] ?? [];
+              return count + stepErrorsForRow.length;
+            }, 0);
+            const errorCount = ownErrors.length + stepErrorCount;
+            const groupColor = normalizeStepColor(group.color);
+
+            return (
+              <article
+                key={group.id}
+                className="template-group-card"
+                style={{
+                  "--group-color": groupColor,
+                } as CSSProperties}
+                data-testid="template-group-card"
+              >
+                <div className="template-group-header">
+                  <button
+                    aria-label={`${collapsed ? "Expand" : "Collapse"} group ${group.name}`}
+                    type="button"
+                    onClick={() => setCollapsedGroups((current) => ({ ...current, [key]: !collapsed }))}
+                  >
+                    {collapsed ? "Expand" : "Collapse"}
+                  </button>
+                  <label className="field-row">
+                    <span>Group name</span>
+                    <input
+                      aria-label={`Group name ${groupIndex + 1}`}
+                      type="text"
+                      value={group.name}
+                      onChange={(event) => updateGroup(groupIndex, { ...group, name: event.target.value })}
+                    />
+                  </label>
+                  <label className="field-row group-color-field">
+                    <span>Group color</span>
+                    <input
+                      aria-label={`Group color ${groupIndex + 1}`}
+                      type="color"
+                      value={groupColor}
+                      onChange={(event) => updateGroup(groupIndex, { ...group, color: event.target.value })}
+                    />
+                    <button
+                      aria-label={`Reset group color ${groupIndex + 1} to default`}
+                      type="button"
+                      onClick={() =>
+                        updateGroup(groupIndex, {
+                          ...group,
+                          color: DEFAULT_STEP_COLOR,
+                        })
+                      }
+                    >
+                      Default
+                    </button>
+                  </label>
+                  <span className={`group-error-pill ${errorCount > 0 ? "has-errors" : ""}`}>
+                    {errorCount > 0 ? `${errorCount} issues` : "No issues"}
+                  </span>
+                  <span className="group-count-label">{groupSteps.length} steps</span>
+                  <button aria-label={`Delete group ${groupIndex + 1}`} type="button" onClick={() => deleteGroup(group.id)}>
+                    Delete group
+                  </button>
+                </div>
+                {!collapsed ? (
+                  <StepCardDropZone bucketKeyValue={key}>
+                    <SortableContext items={groupSteps.map((step) => step.id)} strategy={verticalListSortingStrategy}>
+                      {groupSteps.map((step, index) => (
+                        <StepItem
+                          key={step.id}
+                          step={step}
+                          isGrouped
+                          stepIndex={index}
+                          errors={stepErrors[stepIndexById[step.id]] ?? []}
+                          totalSteps={steps.length}
+                          canMoveUp={index > 0}
+                          canMoveDown={index < groupSteps.length - 1}
+                          canMoveToPreviousGroup={orderedBucketKeys.indexOf(key) > 0}
+                          canMoveToNextGroup={orderedBucketKeys.indexOf(key) < orderedBucketKeys.length - 1}
+                          onUpdate={updateStep}
+                          onMoveWithinGroup={moveStepWithinGroup}
+                          onMoveAcrossGroups={moveStepAcrossGroups}
+                          onDelete={deleteStep}
+                        />
+                      ))}
+                    </SortableContext>
+                    {groupSteps.length === 0 ? <p className="group-empty-state">No steps in this group yet. Add one below.</p> : null}
+                  </StepCardDropZone>
+                ) : null}
+                <div className="group-footer-actions">
+                  <button type="button" onClick={() => addStep(key)}>
+                    Add step to {group.name}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+
+          {(() => {
+            const ungroupedSteps = stepsByBucketKey[UNGROUPED_KEY] ?? [];
+            const collapsed = collapsedGroups[UNGROUPED_KEY] ?? false;
+            const ungroupedErrorCount = ungroupedSteps.reduce((count, step) => {
+              const stepErrorsForRow = stepErrors[stepIndexById[step.id]] ?? [];
+              return count + stepErrorsForRow.length;
+            }, 0);
+
+            return (
+              <article className="template-group-card ungrouped-card" data-testid="template-ungrouped-card">
+                <div className="template-group-header">
+                  <button
+                    aria-label={`${collapsed ? "Expand" : "Collapse"} group Ungrouped`}
+                    type="button"
+                    onClick={() => setCollapsedGroups((current) => ({ ...current, [UNGROUPED_KEY]: !collapsed }))}
+                  >
+                    {collapsed ? "Expand" : "Collapse"}
+                  </button>
+                  <h3>Ungrouped</h3>
+                  <span className={`group-error-pill ${ungroupedErrorCount > 0 ? "has-errors" : ""}`}>
+                    {ungroupedErrorCount > 0 ? `${ungroupedErrorCount} issues` : "No issues"}
+                  </span>
+                  <span className="group-count-label">{ungroupedSteps.length} steps</span>
+                </div>
+                {!collapsed ? (
+                  <StepCardDropZone bucketKeyValue={UNGROUPED_KEY}>
+                    <SortableContext items={ungroupedSteps.map((step) => step.id)} strategy={verticalListSortingStrategy}>
+                      {ungroupedSteps.map((step, index) => (
+                        <StepItem
+                          key={step.id}
+                          step={step}
+                          isGrouped={false}
+                          stepIndex={index}
+                          errors={stepErrors[stepIndexById[step.id]] ?? []}
+                          totalSteps={steps.length}
+                          canMoveUp={index > 0}
+                          canMoveDown={index < ungroupedSteps.length - 1}
+                          canMoveToPreviousGroup={orderedBucketKeys.indexOf(UNGROUPED_KEY) > 0}
+                          canMoveToNextGroup={false}
+                          onUpdate={updateStep}
+                          onMoveWithinGroup={moveStepWithinGroup}
+                          onMoveAcrossGroups={moveStepAcrossGroups}
+                          onDelete={deleteStep}
+                        />
+                      ))}
+                    </SortableContext>
+                    {ungroupedSteps.length === 0 ? (
+                      <p className="group-empty-state">No ungrouped steps. Move one here or create a new step.</p>
+                    ) : null}
+                  </StepCardDropZone>
+                ) : null}
+                <div className="group-footer-actions">
+                  <button type="button" onClick={() => addStep(UNGROUPED_KEY)}>
+                    Add ungrouped step
+                  </button>
+                </div>
+              </article>
+            );
+          })()}
+        </div>
+        <DragOverlay>
+          {activeStep ? (
+            <div className="template-step-item is-overlay">
+              <strong>{activeStep.name}</strong>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </section>
   );
 }
