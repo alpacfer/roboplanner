@@ -115,3 +115,41 @@ test("export readable scenario JSON and import edited JSON", async ({ page }) =>
   await expect(page.getByLabel("Name 1")).toHaveValue("ImportedPrep");
   await expect(page.getByLabel("Operator capacity")).toHaveValue("2");
 });
+
+test("zoom in makes bars wider", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Duration 1").fill("50");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Duration 2").fill("30");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Duration 3").fill("20");
+
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  const firstRect = page.getByTestId("timeline-rect").first();
+  const widthBefore = Number(await firstRect.getAttribute("width"));
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  const widthAfter = Number(await firstRect.getAttribute("width"));
+
+  expect(widthAfter).toBeGreaterThan(widthBefore);
+});
+
+test("pan shifts bars horizontally", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Duration 1").fill("50");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Duration 2").fill("30");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Duration 3").fill("20");
+
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  const firstRect = page.getByTestId("timeline-rect").first();
+  const xBefore = Number(await firstRect.getAttribute("x"));
+  await page.getByRole("button", { name: "Pan right" }).click();
+  const xAfter = Number(await firstRect.getAttribute("x"));
+
+  expect(xAfter).toBeLessThan(xBefore);
+});

@@ -9,11 +9,14 @@ import TemplateEditor from "./ui/template/TemplateEditor";
 import TimelineSvg from "./ui/timeline/TimelineSvg";
 
 function App() {
+  const VIEW_WINDOW_MIN = 80;
   const initialPlan = useMemo(() => createInitialPlans()[0], []);
   const [template, setTemplate] = useState<Step[]>(initialPlan.template);
   const [runs, setRuns] = useState(initialPlan.runs);
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
   const [showWaits, setShowWaits] = useState(true);
+  const [pxPerMin, setPxPerMin] = useState(10);
+  const [viewStartMin, setViewStartMin] = useState(0);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
 
@@ -26,6 +29,11 @@ function App() {
     });
     setSegments(result.segments);
     setMetrics(result.metrics);
+    const initialVisible = showWaits
+      ? result.segments
+      : result.segments.filter((segment) => segment.kind !== "wait");
+    const minStart = initialVisible.length > 0 ? Math.min(...initialVisible.map((segment) => segment.startMin)) : 0;
+    setViewStartMin(minStart);
   };
 
   const applyImportedScenario = (payload: {
@@ -38,11 +46,25 @@ function App() {
     setSettings(payload.settings);
     setSegments([]);
     setMetrics(null);
+    setViewStartMin(0);
   };
 
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
-  const viewStartMin =
-    visibleSegments.length > 0 ? Math.min(...visibleSegments.map((segment) => segment.startMin)) : 0;
+  const maxEndMin = visibleSegments.length > 0 ? Math.max(...visibleSegments.map((segment) => segment.endMin)) : 0;
+  const maxViewStart = Math.max(0, maxEndMin - VIEW_WINDOW_MIN);
+  const clampedViewStartMin = Math.min(Math.max(0, viewStartMin), maxViewStart);
+  const viewEndMin = clampedViewStartMin + VIEW_WINDOW_MIN;
+
+  const pan = (deltaMin: number) => {
+    setViewStartMin((current) => Math.max(0, current + deltaMin));
+  };
+
+  const zoom = (factor: number) => {
+    setPxPerMin((current) => {
+      const next = current * factor;
+      return Math.max(2, Math.min(40, next));
+    });
+  };
 
   return (
     <main className="app-shell">
@@ -82,8 +104,46 @@ function App() {
           Simulate
         </button>
       </div>
+      <section className="viewport-panel">
+        <h2>Viewport</h2>
+        <label htmlFor="zoom-px-per-min">Zoom (px/min)</label>
+        <input
+          id="zoom-px-per-min"
+          aria-label="Zoom (px/min)"
+          max={40}
+          min={2}
+          step={1}
+          type="number"
+          value={Math.round(pxPerMin)}
+          onChange={(event) => {
+            const value = Number.parseInt(event.target.value, 10);
+            if (Number.isNaN(value)) {
+              return;
+            }
+            setPxPerMin(Math.max(2, Math.min(40, value)));
+          }}
+        />
+        <button type="button" onClick={() => zoom(1.25)}>
+          Zoom in
+        </button>
+        <button type="button" onClick={() => zoom(0.8)}>
+          Zoom out
+        </button>
+        <button type="button" onClick={() => pan(-10)}>
+          Pan left
+        </button>
+        <button type="button" onClick={() => pan(10)}>
+          Pan right
+        </button>
+      </section>
       <h2>Timeline</h2>
-      <TimelineSvg pxPerMin={10} runs={runs} segments={visibleSegments} viewStartMin={viewStartMin} />
+      <TimelineSvg
+        pxPerMin={pxPerMin}
+        runs={runs}
+        segments={visibleSegments}
+        viewStartMin={clampedViewStartMin}
+        viewEndMin={viewEndMin}
+      />
       <MetricsPanel metrics={metrics} />
       <ImportExportPanel
         settings={settings}
