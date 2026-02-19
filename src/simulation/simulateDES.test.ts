@@ -108,4 +108,13 @@ describe("simulateDES", () => {
       ]),
     );
   });
+
+  it("computes MVP6 metrics correctly", () => {
+    const { metrics } = simulateDES(fixturePlan);
+
+    expect(metrics.makespan).toBe(50);
+    expect(metrics.operatorBusyMin).toBe(40);
+    expect(metrics.operatorUtilization).toBe(0.8);
+    expect(metrics.totalWaitingMin).toBe(10);
+  });
 });

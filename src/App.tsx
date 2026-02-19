@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import type { PlanSettings, Segment, Step } from "./domain/types";
+import type { PlanSettings, Segment, SimulationMetrics, Step } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
+import MetricsPanel from "./ui/metrics/MetricsPanel";
 import RunsEditor from "./ui/runs/RunsEditor";
 import TemplateEditor from "./ui/template/TemplateEditor";
 import TimelineSvg from "./ui/timeline/TimelineSvg";
@@ -13,6 +14,7 @@ function App() {
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
   const [showWaits, setShowWaits] = useState(true);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
 
   const simulate = () => {
     const result = simulateDES({
@@ -22,6 +24,7 @@ function App() {
       settings,
     });
     setSegments(result.segments);
+    setMetrics(result.metrics);
   };
 
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
@@ -68,6 +71,7 @@ function App() {
       </div>
       <h2>Timeline</h2>
       <TimelineSvg pxPerMin={10} runs={runs} segments={visibleSegments} viewStartMin={viewStartMin} />
+      <MetricsPanel metrics={metrics} />
       <h2>Template State</h2>
       <pre data-testid="template-state">{JSON.stringify(template)}</pre>
       <h2>Runs State</h2>

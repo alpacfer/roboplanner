@@ -91,6 +91,31 @@ body {
   border: 1px solid #cfd5df;
 }
 
+.metrics-panel dl {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.metrics-panel dl > div {
+  background: #ffffff;
+  border: 1px solid #cfd5df;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.metrics-panel dt {
+  color: #475569;
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+
+.metrics-panel dd {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
 .lane-label {
   fill: #1f2937;
   font-size: 12px;
