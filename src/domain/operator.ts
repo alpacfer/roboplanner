@@ -1,10 +1,13 @@
-import type { OperatorInvolvement, Step } from "./types";
+import type { OperatorInvolvement } from "./types";
 
 export function mapLegacyRequiresOperator(requiresOperator: boolean | undefined): OperatorInvolvement {
   return requiresOperator ? "WHOLE" : "NONE";
 }
 
-export function normalizeOperatorInvolvement(step: Pick<Step, "operatorInvolvement" | "requiresOperator">): OperatorInvolvement {
+export function normalizeOperatorInvolvement(step: {
+  operatorInvolvement?: OperatorInvolvement;
+  requiresOperator?: boolean;
+}): OperatorInvolvement {
   return step.operatorInvolvement ?? mapLegacyRequiresOperator(step.requiresOperator);
 }
 

@@ -20,6 +20,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function isValidOperatorInvolvement(value: unknown): value is OperatorInvolvement {
   return (
     value === "NONE" ||
@@ -46,7 +50,7 @@ function isValidStepV2(value: unknown): value is Omit<Step, "groupId"> {
   const colorValid = typeof value.color === "undefined" || isValidHexColor(value.color);
   return (
     typeof value.id === "string" &&
-    typeof value.name === "string" &&
+    isNonEmptyString(value.name) &&
     isInteger(value.durationMin) &&
     value.durationMin > 0 &&
     isValidOperatorInvolvement(value.operatorInvolvement) &&
@@ -68,7 +72,7 @@ function isValidStepGroup(value: unknown): value is StepGroup {
     return false;
   }
 
-  return typeof value.id === "string" && typeof value.name === "string" && isValidHexColor(value.color);
+  return typeof value.id === "string" && isNonEmptyString(value.name) && isValidHexColor(value.color);
 }
 
 function isValidRun(value: unknown): value is Run {
@@ -77,7 +81,7 @@ function isValidRun(value: unknown): value is Run {
   }
   return (
     typeof value.id === "string" &&
-    typeof value.label === "string" &&
+    isNonEmptyString(value.label) &&
     isInteger(value.startMin) &&
     value.startMin >= 0 &&
     typeof value.templateId === "string"
@@ -115,7 +119,7 @@ function isLegacyStep(value: unknown): value is Omit<Step, "operatorInvolvement"
   }
   return (
     typeof value.id === "string" &&
-    typeof value.name === "string" &&
+    isNonEmptyString(value.name) &&
     isInteger(value.durationMin) &&
     value.durationMin > 0 &&
     typeof value.requiresOperator === "boolean"
@@ -146,12 +150,24 @@ function normalizeTemplateWithFallback(template: Step[] | Array<Omit<Step, "grou
   }));
 }
 
-function ensureValidGroupReferences(template: Step[], stepGroups: StepGroup[]) {
-  const groupIds = new Set(stepGroups.map((group) => group.id));
-  if (groupIds.size !== stepGroups.length) {
+function hasUniqueIds<T extends { id: string }>(records: T[]): boolean {
+  return new Set(records.map((record) => record.id)).size === records.length;
+}
+
+function ensureValidScenarioReferences(template: Step[], stepGroups: StepGroup[], runs: Run[]) {
+  if (!hasUniqueIds(template)) {
+    throw new Error("Scenario payload has duplicate template step ids.");
+  }
+
+  if (!hasUniqueIds(stepGroups)) {
     throw new Error("Scenario payload has duplicate step group ids.");
   }
 
+  if (!hasUniqueIds(runs)) {
+    throw new Error("Scenario payload has duplicate run ids.");
+  }
+
+  const groupIds = new Set(stepGroups.map((group) => group.id));
   for (const step of template) {
     if (step.groupId !== null && !groupIds.has(step.groupId)) {
       throw new Error("Scenario payload has invalid template data.");
@@ -194,7 +210,15 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
     stepGroups = raw.stepGroups;
   }
 
+  if (normalizedTemplate.length === 0) {
+    throw new Error("Scenario payload has invalid template data.");
+  }
+
   if (!Array.isArray(runs) || !runs.every((run) => isValidRun(run))) {
+    throw new Error("Scenario payload has invalid runs data.");
+  }
+
+  if (runs.length === 0) {
     throw new Error("Scenario payload has invalid runs data.");
   }
 
@@ -202,7 +226,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
     throw new Error("Scenario payload has invalid settings data.");
   }
 
-  ensureValidGroupReferences(normalizedTemplate, stepGroups);
+  ensureValidScenarioReferences(normalizedTemplate, stepGroups, runs);
 
   return {
     version: 3,

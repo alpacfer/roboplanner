@@ -125,4 +125,90 @@ describe("scenario schema", () => {
       }),
     ).toThrow("Scenario payload has invalid settings data.");
   });
+
+  it("rejects payload with empty template", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid template data.");
+  });
+
+  it("rejects payload with empty runs", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid runs data.");
+  });
+
+  it("rejects payload with duplicate step ids", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [
+          { id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null },
+          { id: "s1", name: "Measure", durationMin: 10, operatorInvolvement: "NONE", groupId: null },
+        ],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has duplicate template step ids.");
+  });
+
+  it("rejects payload with duplicate run ids", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [
+          { id: "r1", label: "R1", startMin: 0, templateId: "plan-default" },
+          { id: "r1", label: "R2", startMin: 1, templateId: "plan-default" },
+        ],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has duplicate run ids.");
+  });
+
+  it("rejects payload with empty names", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: " ", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid template data.");
+
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: " ", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid runs data.");
+
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: "g1" }],
+        stepGroups: [{ id: "g1", name: " ", color: "#4e79a7" }],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid stepGroups data.");
+  });
 });

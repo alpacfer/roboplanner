@@ -94,6 +94,19 @@ export function scheduleLinear(plan: Plan): Segment[] {
 }
 
 export function simulateDES(plan: Plan): SimulationResult {
+  if (plan.template.length === 0 || plan.runs.length === 0) {
+    return {
+      segments: [],
+      events: [],
+      metrics: {
+        makespan: 0,
+        operatorBusyMin: 0,
+        operatorUtilization: 0,
+        totalWaitingMin: 0,
+      },
+    };
+  }
+
   const events: SimulationEvent[] = [];
   const segments: Segment[] = [];
   const operatorCapacity = plan.settings.operatorCapacity;

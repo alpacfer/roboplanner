@@ -135,7 +135,7 @@ describe("TemplateEditor", () => {
     expect(readGroups()).toHaveLength(1);
   });
 
-  it("delete all sequences clears groups and removes grouped steps after confirmation", async () => {
+  it("delete all sequences clears groups and ungroups previously grouped steps", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
@@ -147,9 +147,10 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByRole("button", { name: "Confirm delete all sequences" }));
 
     expect(readGroups()).toHaveLength(0);
-    expect(readSteps()).toHaveLength(1);
+    expect(readSteps()).toHaveLength(2);
     expect(screen.getByTestId("steps-state").textContent).toContain('"id":"step-1"');
-    expect(screen.getByTestId("steps-state").textContent).not.toContain('"id":"step-2"');
+    expect(screen.getByTestId("steps-state").textContent).toContain('"id":"step-2"');
+    expect(screen.getByTestId("steps-state").textContent).toContain('"groupId":null');
     expect(screen.queryByRole("dialog", { name: "Delete all sequences confirmation" })).toBeNull();
   });
 

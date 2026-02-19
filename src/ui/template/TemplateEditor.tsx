@@ -315,7 +315,9 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
   };
   const deleteAllGroups = () => {
     const groupIdSet = new Set(stepGroups.map((group) => group.id));
-    const nextSteps = steps.filter((step) => !(step.groupId && groupIdSet.has(step.groupId)));
+    const nextSteps = steps.map((step) =>
+      step.groupId && groupIdSet.has(step.groupId) ? { ...step, groupId: null } : step,
+    );
     emitChange(nextSteps, []);
     setCollapsedGroups({});
     setOpenGroupColorMenuId(null);

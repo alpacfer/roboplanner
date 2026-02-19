@@ -102,7 +102,7 @@ function canRenderLabel(name: string, widthPx: number): boolean {
   return widthPx >= estimatedTextWidth;
 }
 
-function axisTickStep(viewStartMin: number, viewEndMin: number, pxPerMin: number): number {
+function axisTickStep(pxPerMin: number): number {
   const roughByPixels = MIN_AXIS_LABEL_SPACING_PX / Math.max(pxPerMin, 0.0001);
   const rough = Math.max(1, roughByPixels);
   const magnitude = 10 ** Math.floor(Math.log10(rough));
@@ -120,7 +120,7 @@ function axisTickStep(viewStartMin: number, viewEndMin: number, pxPerMin: number
 }
 
 function buildAxisTicks(viewStartMin: number, viewEndMin: number, pxPerMin: number): number[] {
-  const step = axisTickStep(viewStartMin, viewEndMin, pxPerMin);
+  const step = axisTickStep(pxPerMin);
   const first = Math.ceil(viewStartMin / step) * step;
   const ticks: number[] = [];
   for (let tick = first; tick <= viewEndMin; tick += step) {

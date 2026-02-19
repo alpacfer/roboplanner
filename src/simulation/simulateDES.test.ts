@@ -198,5 +198,40 @@ describe("simulateDES", () => {
     const endAcquires = events.filter((event) => event.type === "OP_ACQUIRE" && event.phase === "END");
     expect(endAcquires).toHaveLength(2);
   });
-});
 
+  it("returns an empty result for plans without template steps", () => {
+    const plan: Plan = {
+      ...fixturePlan,
+      template: [],
+    };
+
+    const result = simulateDES(plan);
+
+    expect(result.segments).toEqual([]);
+    expect(result.events).toEqual([]);
+    expect(result.metrics).toEqual({
+      makespan: 0,
+      operatorBusyMin: 0,
+      operatorUtilization: 0,
+      totalWaitingMin: 0,
+    });
+  });
+
+  it("returns an empty result for plans without runs", () => {
+    const plan: Plan = {
+      ...fixturePlan,
+      runs: [],
+    };
+
+    const result = simulateDES(plan);
+
+    expect(result.segments).toEqual([]);
+    expect(result.events).toEqual([]);
+    expect(result.metrics).toEqual({
+      makespan: 0,
+      operatorBusyMin: 0,
+      operatorUtilization: 0,
+      totalWaitingMin: 0,
+    });
+  });
+});

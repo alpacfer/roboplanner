@@ -45,6 +45,20 @@ describe("teststandHtml parser", () => {
     expect(parsed.totalSteps).toBe(2);
   });
 
+  it("keeps unknown or malformed entities unchanged and applies fallback names", () => {
+    const parsed = parseTestStandHtml(
+      `
+      <B>Sequence:   </B>
+      <B>Step: &unknown;</B>
+      <B>Step: &#xZZ;</B>
+      <B>Step: &#bad;</B>
+      `,
+    );
+
+    expect(parsed.sequences[0]?.name).toBe("Sequence 1");
+    expect(parsed.sequences[0]?.steps).toEqual(["&unknown;", "&#xZZ;", "&#bad;"]);
+  });
+
   it("throws clear errors when sequences or steps are missing", () => {
     expect(() => parseTestStandHtml("<B>Step: Lone step</B>")).toThrow(
       "TestStand HTML does not contain any sequences.",
@@ -88,5 +102,26 @@ describe("teststandHtml parser", () => {
       operatorInvolvement: "NONE",
       groupId: "group-15",
     });
+  });
+
+  it("falls back to default duration and operator involvement when options are invalid or omitted", () => {
+    const builtWithInvalidDuration = buildScenarioFromTestStandHtml(
+      "<B>Sequence: Main</B><B>Step: Prep</B>",
+      {
+        defaultDurationMin: 0,
+      },
+    );
+    expect(builtWithInvalidDuration.template[0]?.durationMin).toBe(10);
+    expect(builtWithInvalidDuration.template[0]?.operatorInvolvement).toBe("NONE");
+
+    const builtWithFractionalDuration = buildScenarioFromTestStandHtml(
+      "<B>Sequence: Main</B><B>Step: Prep</B>",
+      {
+        defaultDurationMin: 2.5,
+        defaultOperatorInvolvement: "START_END",
+      },
+    );
+    expect(builtWithFractionalDuration.template[0]?.durationMin).toBe(10);
+    expect(builtWithFractionalDuration.template[0]?.operatorInvolvement).toBe("START_END");
   });
 });

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -173,4 +173,140 @@ describe("App step sequences", () => {
     expect((screen.getByLabelText("Run label 1") as HTMLInputElement).value).toBe("R1");
     expect((screen.getByLabelText("Operator capacity") as HTMLInputElement).value).toBe("1");
   }, 20_000);
+
+  it("toggles the developer tools drawer", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const toggle = screen.getByTestId("debug-drawer-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText("Show developer tools")).toBeTruthy();
+
+    await user.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Hide developer tools")).toBeTruthy();
+
+    await user.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("clamps operator capacity to a minimum of 1", () => {
+    render(<App />);
+
+    const capacityInput = screen.getByLabelText("Operator capacity") as HTMLInputElement;
+    fireEvent.change(capacityInput, { target: { value: "-7" } });
+    expect(capacityInput.value).toBe("1");
+
+    fireEvent.change(capacityInput, { target: { value: "4" } });
+    expect(capacityInput.value).toBe("4");
+  });
+
+  it("toggles visibility of wait segments without re-simulating", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.clear(screen.getByLabelText("Run start 2"));
+    await user.type(screen.getByLabelText("Run start 2"), "0");
+    await user.click(screen.getByRole("button", { name: "Simulate" }));
+
+    expect(screen.getByText("3 segments visible")).toBeTruthy();
+    await user.click(screen.getByLabelText("Show wait segments"));
+    expect(screen.getByText("2 segments visible")).toBeTruthy();
+    await user.click(screen.getByLabelText("Show wait segments"));
+    expect(screen.getByText("3 segments visible")).toBeTruthy();
+  });
+
+  it("fit action resets timeline scroll position", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Simulate" }));
+    const timelineBox = screen.getByTestId("timeline-box");
+    const scrollToSpy = vi.fn();
+    Object.defineProperty(timelineBox, "scrollTo", {
+      configurable: true,
+      value: scrollToSpy,
+    });
+    Object.defineProperty(timelineBox, "clientWidth", {
+      configurable: true,
+      value: 900,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Fit" }));
+    expect(scrollToSpy).toHaveBeenCalledWith({ left: 0, top: 0, behavior: "auto" });
+  });
+
+  it("keeps zoom bounded between configured min and max scale", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Simulate" }));
+
+    for (let index = 0; index < 24; index += 1) {
+      await user.click(screen.getByRole("button", { name: "Zoom out" }));
+    }
+    const firstRectAtMinZoom = screen.getAllByTestId("timeline-rect")[0];
+    const minWidth = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
+    expect(minWidth).toBeCloseTo(2, 3);
+
+    await user.click(screen.getByRole("button", { name: "Zoom out" }));
+    const widthAfterExtraZoomOut = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
+    expect(widthAfterExtraZoomOut).toBeCloseTo(minWidth, 3);
+
+    for (let index = 0; index < 36; index += 1) {
+      await user.click(screen.getByRole("button", { name: "Zoom in" }));
+    }
+    const maxWidth = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
+    expect(maxWidth).toBeCloseTo(400, 3);
+
+    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+    const widthAfterExtraZoomIn = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
+    expect(widthAfterExtraZoomIn).toBeCloseTo(maxWidth, 3);
+  });
+
+  it("clears prior simulation segments and metrics after importing a new scenario", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.clear(screen.getByLabelText("Run start 2"));
+    await user.type(screen.getByLabelText("Run start 2"), "0");
+    await user.click(screen.getByRole("button", { name: "Simulate" }));
+
+    expect(screen.getByText("3 segments visible")).toBeTruthy();
+    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("10");
+
+    const payload = JSON.stringify(
+      {
+        version: 3,
+        template: [
+          {
+            id: "step-1",
+            name: "Imported",
+            durationMin: 5,
+            operatorInvolvement: "NONE",
+            groupId: null,
+            color: "#4e79a7",
+          },
+        ],
+        stepGroups: [],
+        runs: [{ id: "run-1", label: "OnlyRun", startMin: 3, templateId: "plan-default" }],
+        settings: { operatorCapacity: 2, queuePolicy: "FIFO" },
+      },
+      null,
+      2,
+    );
+
+    await user.upload(
+      screen.getByLabelText("Scenario import file"),
+      new File([payload], "replacement.json", { type: "application/json" }),
+    );
+
+    expect(screen.getByText("0 segments visible")).toBeTruthy();
+    expect(screen.getByTestId("metric-makespan").textContent).toBe("0");
+    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("0");
+    expect((screen.getByLabelText("Run label 1") as HTMLInputElement).value).toBe("OnlyRun");
+    expect((screen.getByLabelText("Operator capacity") as HTMLInputElement).value).toBe("2");
+  });
 });
