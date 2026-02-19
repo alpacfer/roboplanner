@@ -116,6 +116,23 @@ body {
   margin: 0;
 }
 
+.portability-panel {
+  margin-top: 1rem;
+}
+
+.portability-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.portability-panel textarea {
+  box-sizing: border-box;
+  font-family: Consolas, "Courier New", monospace;
+  margin-top: 0.4rem;
+  width: 100%;
+}
+
 .lane-label {
   fill: #1f2937;
   font-size: 12px;

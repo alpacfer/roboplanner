@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import type { PlanSettings, Segment, SimulationMetrics, Step } from "./domain/types";
+import type { PlanSettings, Run, Segment, SimulationMetrics, Step } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
 import MetricsPanel from "./ui/metrics/MetricsPanel";
+import ImportExportPanel from "./ui/portability/ImportExportPanel";
 import RunsEditor from "./ui/runs/RunsEditor";
 import TemplateEditor from "./ui/template/TemplateEditor";
 import TimelineSvg from "./ui/timeline/TimelineSvg";
@@ -25,6 +26,18 @@ function App() {
     });
     setSegments(result.segments);
     setMetrics(result.metrics);
+  };
+
+  const applyImportedScenario = (payload: {
+    template: Step[];
+    runs: Run[];
+    settings: PlanSettings;
+  }) => {
+    setTemplate(payload.template);
+    setRuns(payload.runs);
+    setSettings(payload.settings);
+    setSegments([]);
+    setMetrics(null);
   };
 
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
@@ -72,6 +85,12 @@ function App() {
       <h2>Timeline</h2>
       <TimelineSvg pxPerMin={10} runs={runs} segments={visibleSegments} viewStartMin={viewStartMin} />
       <MetricsPanel metrics={metrics} />
+      <ImportExportPanel
+        settings={settings}
+        template={template}
+        runs={runs}
+        onImport={applyImportedScenario}
+      />
       <h2>Template State</h2>
       <pre data-testid="template-state">{JSON.stringify(template)}</pre>
       <h2>Runs State</h2>

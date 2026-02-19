@@ -9,7 +9,7 @@ A web app for planning linear device testing sequences and visualizing capacity 
   - One lane per run
   - Step segments + optional wait segments
   - Clear marking of operator-required steps
-- Support **multiple plans** (different timelines/scenarios) stored locally.
+- Support **import/export of scenario data** (template + runs + settings) using a readable, manually editable format.
 
 ## Non-goals
 - Collaboration or multi-user accounts
@@ -49,9 +49,8 @@ A web app for planning linear device testing sequences and visualizing capacity 
     - metrics.ts
     - fixtures.ts
   - ui/
-    - plan/
-      - PlanSelector.tsx
-      - PlanEditor.tsx
+    - portability/
+      - ImportExportPanel.tsx
     - template/
       - TemplateEditor.tsx
     - runs/
@@ -343,21 +342,21 @@ Using MVP5 fixture:
 UI tests
 - metrics render with correct values
 
-### MVP 7: Multiple plans (timelines)
+### MVP 7: Import/Export scenario data
 Deliverables
-- Create/rename/duplicate/delete plan
-- Each plan stores template + runs + settings
-- Plan selector UI
-- Persist plans in LocalStorage
+- Export current scenario (template + runs + settings) to a human-readable JSON format
+- Import scenario from edited JSON text
+- Include schema version in exported payload (e.g., version=1)
+- Validate imported payload shape and show user-friendly error on invalid input
+- Applying imported scenario updates editors and timeline inputs
 
 Unit tests
-- serialization/deserialization round-trip for plans
+- serialization/deserialization round-trip for exported scenario payload
 - schema migration stub (version number)
 
 E2E tests
-- create plan A, edit template
-- create plan B, different runs
-- switching plans changes timeline
+- export scenario JSON and verify readability (indented keys, version field present)
+- edit JSON manually, import it, and verify UI state reflects imported values
 
 ### MVP 8: Timeline interaction (zoom/pan + visible-range rendering)
 Deliverables
@@ -392,6 +391,11 @@ Fixture:
 Expect:
 - simulateDES completes under a target threshold on a typical dev machine
 - SVG renders only visible subset under zoom/pan
+
+### Import/Export robustness tests (add after MVP7)
+- Invalid JSON import shows clear error and does not mutate current state
+- Unsupported schema version triggers migration-path error message
+- Missing required fields (template/runs/settings) fail validation
 
 ## Codex implementation workflow
 - Implement MVPs in order.

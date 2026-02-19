@@ -79,3 +79,39 @@ test("capacity=1 with same start shows R2 wait block from 0 to 10", async ({ pag
   await expect(page.getByTestId("timeline-lane")).toHaveCount(2);
   await expect(page.getByText("wait: operator")).toBeVisible();
 });
+
+test("export readable scenario JSON and import edited JSON", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Add run" }).click();
+  await page.getByLabel("Run label 2").fill("R2");
+  await page.getByLabel("Run start 2").fill("15");
+
+  await page.getByRole("button", { name: "Export scenario" }).click();
+
+  const scenarioTextArea = page.getByTestId("scenario-json");
+  const exportedText = await scenarioTextArea.inputValue();
+  expect(exportedText).toContain('"version": 1');
+  expect(exportedText).toContain('"template"');
+  expect(exportedText).toContain('"runs"');
+  expect(exportedText).toContain('"settings"');
+
+  const editedPayload = JSON.parse(exportedText) as {
+    version: number;
+    template: Array<{ id: string; name: string; durationMin: number; requiresOperator: boolean }>;
+    runs: Array<{ id: string; label: string; startMin: number; templateId: string }>;
+    settings: { operatorCapacity: number; queuePolicy: string };
+  };
+  editedPayload.runs = [{ ...editedPayload.runs[0], label: "ImportedR1", startMin: 5 }];
+  editedPayload.settings = { ...editedPayload.settings, operatorCapacity: 2 };
+  editedPayload.template[0] = { ...editedPayload.template[0], name: "ImportedPrep" };
+
+  await scenarioTextArea.fill(JSON.stringify(editedPayload, null, 2));
+  await page.getByRole("button", { name: "Import scenario" }).click();
+
+  await expect(page.getByTestId("scenario-status")).toContainText("Scenario imported.");
+  await expect(page.getByLabel("Run label 1")).toHaveValue("ImportedR1");
+  await expect(page.getByLabel("Run start 1")).toHaveValue("5");
+  await expect(page.getByLabel("Name 1")).toHaveValue("ImportedPrep");
+  await expect(page.getByLabel("Operator capacity")).toHaveValue("2");
+});
