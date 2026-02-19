@@ -126,6 +126,19 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+.icon-button {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 2.1rem;
+  padding: 0.5rem;
+}
+
+.icon-glyph {
+  font-size: 0.98rem;
+  line-height: 1;
+}
+
 input,
 select {
   border: 1px solid var(--border);
@@ -339,6 +352,12 @@ input[type="checkbox"] {
   justify-content: space-between;
 }
 
+.template-editor-actions {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
 .template-editor-title-group {
   display: grid;
   gap: 0.25rem;
@@ -390,10 +409,6 @@ input[type="checkbox"] {
   align-self: center;
 }
 
-.group-toggle-button {
-  min-width: 84px;
-}
-
 .group-delete-button,
 .danger-ghost-button {
   background: var(--danger-soft);
@@ -401,18 +416,44 @@ input[type="checkbox"] {
   color: var(--danger);
 }
 
+.template-group-header .group-delete-button {
+  margin-left: auto;
+}
+
 .group-color-field {
-  min-width: 215px;
+  align-self: center;
+  min-width: 0;
 }
 
-.group-color-controls {
-  align-items: center;
-  display: flex;
+.group-color-picker {
+  position: relative;
+}
+
+.group-color-trigger {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  height: 28px;
+  padding: 0;
+  width: 28px;
+}
+
+.group-color-menu {
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px color-mix(in srgb, #0f172a 18%, transparent);
+  display: grid;
   gap: var(--space-2);
+  left: 0;
+  padding: var(--space-2);
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 10;
 }
 
-.group-color-field input[type="color"] {
-  width: 50px;
+.group-color-menu input[type="color"] {
+  width: 100%;
 }
 
 .group-error-pill {
@@ -472,39 +513,29 @@ input[type="checkbox"] {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-3);
-}
-
-.template-step-item.is-dragging,
-.template-step-item.is-overlay {
-  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
-  box-shadow: var(--shadow-md);
+  position: relative;
 }
 
 .template-step-top {
-  align-items: start;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
-.drag-handle {
-  background: color-mix(in srgb, var(--accent-soft) 84%, white);
-  border-color: color-mix(in srgb, var(--accent) 16%, var(--border));
-  min-width: 58px;
+  padding-right: 2.4rem;
+  position: relative;
 }
 
 .template-step-title-row {
   display: grid;
   gap: var(--space-2);
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto minmax(160px, 220px);
   min-width: 0;
 }
 
 .template-step-lower {
-  align-items: end;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-2);
   justify-content: space-between;
 }
 
@@ -521,6 +552,33 @@ input[type="checkbox"] {
 .field-row select {
   min-width: 0;
   width: 100%;
+}
+
+.step-name-field input {
+  min-width: 0;
+}
+
+.duration-field {
+  align-items: center;
+  justify-content: end;
+}
+
+.duration-field input.step-duration-input {
+  text-align: center;
+  width: 6.8ch;
+  min-width: 6.8ch;
+}
+
+.operator-select {
+  max-width: 100%;
+  min-width: 31ch;
+  width: 31ch;
+}
+
+.step-delete-button {
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .step-color-cell {
@@ -544,16 +602,6 @@ input[type="checkbox"] {
   width: 20px;
 }
 
-.inherited-color-note {
-  background: var(--surface);
-  border: 1px dashed var(--border-strong);
-  border-radius: 8px;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.38rem 0.56rem;
-}
-
 .row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -570,12 +618,6 @@ input[type="checkbox"] {
   font-size: 0.78rem;
   margin: 0;
   padding-left: 1.1rem;
-}
-
-.valid-step {
-  color: var(--success);
-  font-size: 0.82rem;
-  font-weight: 700;
 }
 
 .runs-editor {

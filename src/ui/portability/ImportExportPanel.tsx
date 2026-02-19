@@ -134,11 +134,27 @@ function ImportExportPanel({ template, stepGroups, runs, settings, onImport }: I
     <section className="portability-panel">
       <h2>Import / Export Scenario</h2>
       <div className="portability-actions">
-        <button type="button" onClick={handleExport}>
-          Export scenario
+        <button
+          aria-label="Export scenario"
+          className="icon-button"
+          title="Export scenario"
+          type="button"
+          onClick={handleExport}
+        >
+          <span aria-hidden="true" className="icon-glyph">
+            ⤴
+          </span>
         </button>
-        <button type="button" onClick={handleImportSelect}>
-          Import scenario
+        <button
+          aria-label="Import scenario"
+          className="icon-button"
+          title="Import scenario"
+          type="button"
+          onClick={handleImportSelect}
+        >
+          <span aria-hidden="true" className="icon-glyph">
+            ⤵
+          </span>
         </button>
       </div>
       <label className="file-input-label">

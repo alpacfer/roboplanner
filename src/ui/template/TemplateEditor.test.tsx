@@ -71,15 +71,13 @@ describe("TemplateEditor", () => {
     expect(addedStep?.groupId).toBe(groups[0]?.id);
   });
 
-  it("keyboard fallback moves step across sequences", async () => {
+  it("move controls reorder steps within a sequence", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    const groupId = readGroups()[0]?.id;
-
-    await user.click(screen.getByRole("button", { name: "Move step 1 to previous sequence" }));
-    expect(readSteps()[0]?.groupId).toBe(groupId);
+    await user.click(screen.getByRole("button", { name: "Add unsequenced step" }));
+    await user.click(screen.getByRole("button", { name: "Move step 2 up" }));
+    expect(readSteps()[0]?.id).toBe("step-2");
   });
 
   it("collapse hides grouped steps and expand restores them", async () => {
@@ -87,13 +85,28 @@ describe("TemplateEditor", () => {
     render(<TestHarness />);
 
     await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    await user.click(screen.getByRole("button", { name: "Move step 1 to previous sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
 
-    expect(screen.getAllByTestId("step-item")).toHaveLength(1);
+    expect(screen.getAllByTestId("step-item")).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "Collapse sequence Sequence 1" }));
-    expect(screen.queryAllByTestId("step-item")).toHaveLength(0);
+    expect(screen.queryAllByTestId("step-item")).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: "Expand sequence Sequence 1" }));
-    expect(screen.getAllByTestId("step-item")).toHaveLength(1);
+    expect(screen.getAllByTestId("step-item")).toHaveLength(2);
+  });
+
+  it("collapse all toggle collapses and expands all sequence cards", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
+
+    expect(screen.getAllByTestId("step-item")).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Collapse all sequences" }));
+    expect(screen.queryAllByTestId("step-item")).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: "Expand all sequences" }));
+    expect(screen.getAllByTestId("step-item")).toHaveLength(2);
   });
 
   it("deleting sequence unassigns grouped steps", async () => {
@@ -101,10 +114,11 @@ describe("TemplateEditor", () => {
     render(<TestHarness />);
 
     await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    await user.click(screen.getByRole("button", { name: "Move step 1 to previous sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
     await user.click(screen.getByRole("button", { name: "Delete sequence 1" }));
 
     expect(screen.getByTestId("groups-state").textContent).toBe("[]");
+    expect(screen.getByTestId("steps-state").textContent).toContain('"id":"step-2"');
     expect(screen.getByTestId("steps-state").textContent).toContain('"groupId":null');
   });
 
@@ -118,25 +132,24 @@ describe("TemplateEditor", () => {
     expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00ff00"');
 
     await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    await user.click(screen.getByRole("button", { name: "Move step 1 to previous sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
 
-    expect(screen.getByText("Step color is inherited from the sequence.")).toBeTruthy();
-    expect(screen.queryByLabelText("Step color step-1")).toBeNull();
+    expect(screen.queryByLabelText("Step color step-2")).toBeNull();
     expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00ff00"');
   });
 
-  it("group color can be reset to default", async () => {
+  it("group color menu opens from color box and updates via color input", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
     await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    const groupColorInput = screen.getByLabelText("Sequence color 1") as HTMLInputElement;
+    expect(screen.queryByLabelText("Sequence color 1")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu 1" }));
 
+    const groupColorInput = screen.getByLabelText("Sequence color 1") as HTMLInputElement;
     fireEvent.input(groupColorInput, { target: { value: "#00ff00" } });
     expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#00ff00"');
-
-    await user.click(screen.getByRole("button", { name: "Reset sequence color 1 to default" }));
-    expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#4e79a7"');
+    expect(screen.queryByRole("button", { name: "Reset sequence color 1 to default" })).toBeNull();
   });
 
   it("group color supports preset swatches", async () => {
@@ -144,6 +157,7 @@ describe("TemplateEditor", () => {
     render(<TestHarness />);
 
     await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu 1" }));
     await user.click(screen.getByRole("button", { name: "Sequence preset 1 #f28e2b" }));
 
     expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#f28e2b"');

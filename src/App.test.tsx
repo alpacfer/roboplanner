@@ -60,7 +60,7 @@ describe("App step sequences", () => {
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
     await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    await user.click(screen.getByRole("button", { name: "Move step 1 to previous sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
     await user.click(screen.getByRole("button", { name: "Export scenario" }));
 
     expect(createObjectURLMock).toHaveBeenCalledTimes(1);
@@ -78,7 +78,7 @@ describe("App step sequences", () => {
 
     expect(parsed.version).toBe(3);
     expect(parsed.stepGroups).toHaveLength(1);
-    expect(parsed.template[0].groupId).toBe(parsed.stepGroups[0].id);
+    expect(parsed.template.some((step) => step.groupId === parsed.stepGroups[0].id)).toBe(true);
     anchorClick.mockRestore();
   });
 

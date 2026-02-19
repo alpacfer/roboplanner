@@ -44,8 +44,10 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
     <section className="runs-editor">
       <div className="runs-editor-header">
         <h2>Runs</h2>
-        <button type="button" onClick={addRun}>
-          Add run
+        <button aria-label="Add run" className="icon-button" title="Add run" type="button" onClick={addRun}>
+          <span aria-hidden="true" className="icon-glyph">
+            +
+          </span>
         </button>
       </div>
       <div className="table-wrap">
@@ -93,12 +95,15 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                   <td>
                     <button
                       aria-label={`Delete run ${index + 1}`}
-                      className="danger-ghost-button"
+                      className="danger-ghost-button icon-button"
                       disabled={runs.length <= 1}
+                      title={`Delete run ${run.label}`}
                       type="button"
                       onClick={() => deleteRun(index)}
                     >
-                      Delete
+                      <span aria-hidden="true" className="icon-glyph">
+                        ×
+                      </span>
                     </button>
                   </td>
                   <td>
