@@ -59,4 +59,43 @@ describe("scheduleLinear", () => {
       expect(segments[index].endMin).toBe(segments[index + 1].startMin);
     }
   });
+
+  it("produces expected segments for R2 in multi-run fixture", () => {
+    const multiRunPlan: Plan = {
+      ...fixturePlan,
+      runs: [
+        { id: "R1", label: "R1", startMin: 0, templateId: "plan-fixture" },
+        { id: "R2", label: "R2", startMin: 15, templateId: "plan-fixture" },
+      ],
+    };
+
+    const r2Segments = scheduleLinear(multiRunPlan).filter((segment) => segment.runId === "R2");
+
+    expect(r2Segments).toEqual([
+      {
+        runId: "R2",
+        name: "Prep",
+        startMin: 15,
+        endMin: 25,
+        kind: "step",
+        requiresOperator: true,
+      },
+      {
+        runId: "R2",
+        name: "Soak",
+        startMin: 25,
+        endMin: 55,
+        kind: "step",
+        requiresOperator: false,
+      },
+      {
+        runId: "R2",
+        name: "Measure",
+        startMin: 55,
+        endMin: 75,
+        kind: "step",
+        requiresOperator: true,
+      },
+    ]);
+  });
 });

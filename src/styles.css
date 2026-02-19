@@ -26,8 +26,16 @@ body {
   width: 100%;
 }
 
+.runs-table {
+  border-collapse: collapse;
+  margin-top: 1rem;
+  width: 100%;
+}
+
 .template-table th,
-.template-table td {
+.template-table td,
+.runs-table th,
+.runs-table td {
   border: 1px solid #cfd5df;
   padding: 0.5rem;
   text-align: left;
@@ -35,7 +43,9 @@ body {
 }
 
 .template-table input[type="text"],
-.template-table input[type="number"] {
+.template-table input[type="number"],
+.runs-table input[type="text"],
+.runs-table input[type="number"] {
   box-sizing: border-box;
   width: 100%;
 }
