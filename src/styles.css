@@ -55,6 +55,27 @@ body {
   gap: 0.4rem;
 }
 
+.step-color-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.step-color-presets {
+  display: grid;
+  gap: 0.3rem;
+  grid-template-columns: repeat(5, 18px);
+}
+
+.color-preset-button {
+  border: 1px solid #94a3b8;
+  border-radius: 3px;
+  cursor: pointer;
+  height: 18px;
+  padding: 0;
+  width: 18px;
+}
+
 .inline-errors {
   color: #ba1a1a;
   margin: 0;
@@ -187,10 +208,17 @@ body {
   font-size: 10px;
 }
 
+.operator-pattern-overlay {
+  pointer-events: none;
+}
+
 .segment-label {
   fill: #ffffff;
   font-size: 11px;
+  paint-order: stroke fill;
   pointer-events: none;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 2px;
 }
 
 pre {

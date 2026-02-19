@@ -21,6 +21,7 @@ describe("default plan", () => {
         },
         "template": [
           {
+            "color": "#4f7cff",
             "durationMin": 10,
             "id": "step-1",
             "name": "Prep",

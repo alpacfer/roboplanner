@@ -8,7 +8,7 @@ A web app for planning linear device testing sequences and visualizing capacity 
 - Visualize results as a **custom SVG timeline**:
   - One lane per run
   - Step segments + optional wait segments
-  - Clear marking of operator-required steps
+  - Clear marking of operator-required steps (grid pattern overlay)
 - Support **import/export of scenario data** (template + runs + settings) using a readable, manually editable format.
 
 ## Non-goals
@@ -74,6 +74,7 @@ A web app for planning linear device testing sequences and visualizing capacity 
 - name: string
 - durationMin: number (integer, > 0)
 - requiresOperator: boolean
+- color: string (hex, e.g. "#4f7cff")
 
 ### Run (device instance)
 - id: string
@@ -125,10 +126,19 @@ Also produce an event log (useful for debugging).
 - Each segment is a rectangle:
   - x = (startMin - viewStartMin) * pxPerMin
   - width = (endMin - startMin) * pxPerMin
+- Segment fill color comes from the step color.
+- Operator-required step visualization uses a grid pattern overlay (not a different base color).
 - Label rendering:
-  - draw text only when width exceeds a threshold (avoid clutter)
+  - draw text only when the text can fit in the segment width (avoid clutter)
 - Visibility:
   - only render segments intersecting the viewport time window
+- Tooltip:
+  - hovering a segment shows name, start/end minute, and requiresOperator flag
+- Axis:
+  - horizontal minute axis with auto-scaled ticks
+  - auto-scaling should avoid overlapping axis labels
+- Viewport container:
+  - fixed-size timeline box with horizontal/vertical scrollbars when needed
 
 ## MVP roadmap
 Implement in order. After each MVP, all tests for that MVP must pass.
@@ -179,6 +189,8 @@ Deliverables
 - UI to edit template steps:
   - add step
   - edit name, durationMin, requiresOperator
+  - edit color via color picker
+  - quick-select from 10 preset colors
   - delete step
   - reorder steps (drag/drop optional; buttons OK for MVP)
 - Validation errors shown inline
@@ -187,6 +199,9 @@ Component tests (RTL)
 - adding a step adds a row
 - editing duration updates state
 - invalid duration shows error
+- editing color updates state
+- selecting preset color updates state
+- table column order aligns with headers
 
 E2E tests
 - user creates 3 steps and sees them persisted in UI state
@@ -346,6 +361,7 @@ UI tests
 Deliverables
 - Export current scenario (template + runs + settings) to a human-readable JSON format
 - Import scenario from edited JSON text
+- Copy exported JSON to clipboard from the UI
 - Include schema version in exported payload (e.g., version=1)
 - Validate imported payload shape and show user-friendly error on invalid input
 - Applying imported scenario updates editors and timeline inputs
@@ -353,24 +369,41 @@ Deliverables
 Unit tests
 - serialization/deserialization round-trip for exported scenario payload
 - schema migration stub (version number)
+- clipboard copy action reports success
 
 E2E tests
 - export scenario JSON and verify readability (indented keys, version field present)
 - edit JSON manually, import it, and verify UI state reflects imported values
+- copy JSON action shows success status
 
-### MVP 8: Timeline interaction (zoom/pan + visible-range rendering)
+### MVP 8: Timeline interaction (zoom + fixed scroll viewport + visible-range rendering)
 Deliverables
 - Zoom control changes pxPerMin
-- Pan changes viewStartMin
+- Fixed-size timeline viewport box
+- Horizontal and vertical scrollbars appear when content exceeds viewport
+- "Fit to window" action adjusts zoom to fit current timeline span
 - Only visible segments are rendered
+- Horizontal minute axis with auto-scaled ticks
+- Tooltip on hover with step details
+- Operator-required steps rendered with grid pattern overlay
+- Step labels rendered only when text fits in available segment width
 
 Unit tests
 - viewport filtering: segments outside window are excluded
 - zoom math: pxPerMin scaling affects x/width
+- axis auto-scale renders appropriate tick labels
+- axis labels do not overlap/duplicate for short ranges
+- tooltip renders expected content on hover
+- operator pattern overlay renders for operator-required steps
 
 E2E tests
 - zoom in makes bars wider
-- pan shifts bars horizontally
+- viewport shows horizontal scroll when needed
+- fit to window narrows bars and handles long spans (>500 min)
+- tooltip appears on hover with segment details
+- axis labels visible for long spans (e.g. 0 min, 100 min)
+- step label hidden when text does not fit
+- step color picker affects rendered segment color
 
 ## Extended test suite (add after MVP5)
 ### Property-based tests (optional but valuable)
@@ -396,6 +429,7 @@ Expect:
 - Invalid JSON import shows clear error and does not mutate current state
 - Unsupported schema version triggers migration-path error message
 - Missing required fields (template/runs/settings) fail validation
+- Property-based malformed payloads are rejected across random inputs
 
 ## Codex implementation workflow
 - Implement MVPs in order.

@@ -5,6 +5,7 @@ export interface Step {
   name: string;
   durationMin: number;
   requiresOperator: boolean;
+  color?: string;
 }
 
 export interface Run {

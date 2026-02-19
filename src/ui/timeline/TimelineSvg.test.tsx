@@ -106,4 +106,37 @@ describe("TimelineSvg", () => {
     expect(screen.getByText("100 min")).toBeTruthy();
     expect(screen.getByText("500 min")).toBeTruthy();
   });
+
+  it("avoids overlapping duplicate labels for short ranges", () => {
+    render(<TimelineSvg pxPerMin={40} runs={runs} segments={segments} viewStartMin={0} viewEndMin={4} />);
+    const labels = Array.from(document.querySelectorAll(".axis-label")).map((label) =>
+      label.textContent?.trim(),
+    );
+    const uniqueLabels = new Set(labels);
+
+    expect(uniqueLabels.size).toBe(labels.length);
+    expect(labels.every((label) => typeof label === "string" && /^\d+ min$/.test(label))).toBe(true);
+  });
+
+  it("uses step color and overlays operator pattern", () => {
+    const coloredSegments: Segment[] = [
+      {
+        ...segments[0],
+        stepId: "s1",
+      },
+      {
+        ...segments[1],
+        stepId: "s2",
+      },
+      {
+        ...segments[2],
+        stepId: "s3",
+      },
+    ];
+    render(<TimelineSvg pxPerMin={2} runs={runs} segments={coloredSegments} stepColorsById={{ s1: "#00ff00" }} />);
+    const rects = screen.getAllByTestId("timeline-rect");
+    expect(rects[0].getAttribute("fill")).toBe("#00ff00");
+    const patternRects = screen.getAllByTestId("timeline-operator-pattern");
+    expect(patternRects).toHaveLength(2);
+  });
 });

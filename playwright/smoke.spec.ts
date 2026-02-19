@@ -239,3 +239,17 @@ test("step label is hidden when text does not fit segment width", async ({ page 
     .count();
   expect(labelCount).toBe(0);
 });
+
+test("step color picker controls bar color and operator uses grid pattern overlay", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Name 1").fill("Prep");
+  await page.getByLabel("Duration 1").fill("20");
+  await page.getByLabel("Color 1").fill("#00ff00");
+  await page.getByLabel("Requires operator 1").check();
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  const prepRect = page.locator('[data-testid="timeline-rect"][data-segment-name="Prep"]').first();
+  await expect(prepRect).toHaveAttribute("fill", "#00ff00");
+  await expect(page.getByTestId("timeline-operator-pattern").first()).toBeVisible();
+  await expect(page.locator('[data-testid="timeline-svg"] .segment-label', { hasText: /^Prep$/ })).toBeVisible();
+});

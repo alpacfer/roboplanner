@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { normalizeStepColor } from "./domain/colors";
 import type { PlanSettings, Run, Segment, SimulationMetrics, Step } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
@@ -13,7 +14,9 @@ const MAX_PX_PER_MIN = 40;
 
 function App() {
   const initialPlan = useMemo(() => createInitialPlans()[0], []);
-  const [template, setTemplate] = useState<Step[]>(initialPlan.template);
+  const [template, setTemplate] = useState<Step[]>(
+    initialPlan.template.map((step) => ({ ...step, color: normalizeStepColor(step.color) })),
+  );
   const [runs, setRuns] = useState(initialPlan.runs);
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
   const [showWaits, setShowWaits] = useState(true);
@@ -38,7 +41,7 @@ function App() {
     runs: Run[];
     settings: PlanSettings;
   }) => {
-    setTemplate(payload.template);
+    setTemplate(payload.template.map((step) => ({ ...step, color: normalizeStepColor(step.color) })));
     setRuns(payload.runs);
     setSettings(payload.settings);
     setSegments([]);
@@ -46,6 +49,10 @@ function App() {
   };
 
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
+  const stepColorsById = useMemo(
+    () => Object.fromEntries(template.map((step) => [step.id, normalizeStepColor(step.color)])),
+    [template],
+  );
   const timelineStartMin =
     visibleSegments.length > 0 ? Math.min(...visibleSegments.map((segment) => segment.startMin)) : 0;
   const timelineEndMin =
@@ -146,6 +153,7 @@ function App() {
           pxPerMin={pxPerMin}
           runs={runs}
           segments={visibleSegments}
+          stepColorsById={stepColorsById}
           viewStartMin={timelineStartMin}
           viewEndMin={timelineEndMin}
         />

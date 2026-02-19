@@ -1,3 +1,4 @@
+import { DEFAULT_STEP_COLOR, normalizeStepColor } from "../../domain/colors";
 import { validateStep } from "../../domain/validation";
 import type { Step } from "../../domain/types";
 
@@ -5,6 +6,19 @@ interface TemplateEditorProps {
   steps: Step[];
   onChange: (steps: Step[]) => void;
 }
+
+const STEP_COLOR_PRESETS = [
+  "#4f7cff",
+  "#00b894",
+  "#ff7675",
+  "#f39c12",
+  "#8e44ad",
+  "#16a085",
+  "#e84393",
+  "#2d3436",
+  "#0984e3",
+  "#e17055",
+];
 
 let stepIdCounter = 1000;
 
@@ -29,6 +43,7 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
         name: `Step ${steps.length + 1}`,
         durationMin: 1,
         requiresOperator: false,
+        color: DEFAULT_STEP_COLOR,
       },
     ]);
   };
@@ -61,6 +76,7 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
             <th>Name</th>
             <th>Duration (min)</th>
             <th>Operator</th>
+            <th>Color</th>
             <th>Actions</th>
             <th>Validation</th>
           </tr>
@@ -109,6 +125,38 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
                       });
                     }}
                   />
+                </td>
+                <td>
+                  <div className="step-color-cell">
+                    <input
+                      aria-label={`Color ${index + 1}`}
+                      type="color"
+                      value={normalizeStepColor(step.color)}
+                      onChange={(event) => {
+                        updateStep(index, {
+                          ...step,
+                          color: event.target.value,
+                        });
+                      }}
+                    />
+                    <div className="step-color-presets">
+                      {STEP_COLOR_PRESETS.map((presetColor) => (
+                        <button
+                          key={presetColor}
+                          aria-label={`Preset ${index + 1} ${presetColor}`}
+                          className="color-preset-button"
+                          style={{ backgroundColor: presetColor }}
+                          type="button"
+                          onClick={() => {
+                            updateStep(index, {
+                              ...step,
+                              color: presetColor,
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </td>
                 <td>
                   <div className="row-actions">

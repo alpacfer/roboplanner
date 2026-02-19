@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DEFAULT_STEP_COLOR } from "../../domain/colors";
 import type { Run, Segment } from "../../domain/types";
 import { segmentWidth, segmentX } from "./scale";
 import { filterSegmentsByViewport } from "./viewport";
@@ -6,6 +7,7 @@ import { filterSegmentsByViewport } from "./viewport";
 interface TimelineSvgProps {
   runs: Run[];
   segments: Segment[];
+  stepColorsById?: Record<string, string>;
   pxPerMin: number;
   viewStartMin?: number;
   viewEndMin?: number;
@@ -21,6 +23,7 @@ const BOTTOM_PAD = 18;
 const BAR_HEIGHT = 28;
 const LABEL_HORIZONTAL_PADDING = 10;
 const APPROX_CHAR_WIDTH = 5;
+const MIN_AXIS_LABEL_SPACING_PX = 46;
 
 interface TooltipState {
   x: number;
@@ -33,9 +36,11 @@ function canRenderLabel(name: string, widthPx: number): boolean {
   return widthPx >= estimatedTextWidth;
 }
 
-function axisTickStep(viewStartMin: number, viewEndMin: number): number {
+function axisTickStep(viewStartMin: number, viewEndMin: number, pxPerMin: number): number {
   const span = Math.max(1, viewEndMin - viewStartMin);
-  const rough = span / 8;
+  const roughByCount = span / 8;
+  const roughByPixels = MIN_AXIS_LABEL_SPACING_PX / Math.max(pxPerMin, 0.0001);
+  const rough = Math.max(1, roughByCount, roughByPixels);
   const magnitude = 10 ** Math.floor(Math.log10(rough));
   const normalized = rough / magnitude;
   if (normalized <= 1) {
@@ -50,27 +55,34 @@ function axisTickStep(viewStartMin: number, viewEndMin: number): number {
   return 10 * magnitude;
 }
 
-function buildAxisTicks(viewStartMin: number, viewEndMin: number): number[] {
-  const step = axisTickStep(viewStartMin, viewEndMin);
+function buildAxisTicks(viewStartMin: number, viewEndMin: number, pxPerMin: number): number[] {
+  const step = axisTickStep(viewStartMin, viewEndMin, pxPerMin);
   const first = Math.ceil(viewStartMin / step) * step;
   const ticks: number[] = [];
   for (let tick = first; tick <= viewEndMin; tick += step) {
     ticks.push(tick);
   }
-  if (ticks.length === 0 || ticks[0] !== viewStartMin) {
-    ticks.unshift(viewStartMin);
+  if (ticks.length === 0) {
+    ticks.push(Math.floor(viewStartMin));
   }
   return ticks;
 }
 
-function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0, viewEndMin }: TimelineSvgProps) {
+function TimelineSvg({
+  runs,
+  segments,
+  stepColorsById = {},
+  pxPerMin,
+  viewStartMin = 0,
+  viewEndMin,
+}: TimelineSvgProps) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const effectiveViewEndMin =
     viewEndMin ?? (segments.length > 0 ? Math.max(...segments.map((segment) => segment.endMin)) : viewStartMin);
   const width = TIMELINE_LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + TIMELINE_RIGHT_PAD;
   const height = TOP_PAD + AXIS_HEIGHT + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
   const visibleSegments = filterSegmentsByViewport(segments, viewStartMin, effectiveViewEndMin);
-  const axisTicks = buildAxisTicks(viewStartMin, effectiveViewEndMin);
+  const axisTicks = buildAxisTicks(viewStartMin, effectiveViewEndMin, pxPerMin);
 
   return (
     <div className="timeline-wrap">
@@ -82,6 +94,17 @@ function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0, viewEndMin }:
         role="img"
         width={Math.max(width, 400)}
       >
+        <defs>
+          <pattern
+            id="operator-grid-pattern"
+            width="8"
+            height="8"
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(0,0,0,0.35)" strokeWidth="2" />
+          </pattern>
+        </defs>
         <g data-testid="timeline-axis">
           <line
             className="axis-line"
@@ -123,14 +146,15 @@ function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0, viewEndMin }:
                 const fill =
                   segment.kind === "wait"
                     ? "#9aa5b1"
-                    : segment.requiresOperator
-                      ? "#f57c00"
-                      : "#4f7cff";
+                    : segment.stepId
+                      ? (stepColorsById[segment.stepId] ?? DEFAULT_STEP_COLOR)
+                      : DEFAULT_STEP_COLOR;
 
                 return (
                   <g key={`${segment.runId}-${segmentIndex}`}>
                     <rect
                       data-testid="timeline-rect"
+                      data-segment-name={segment.name}
                       fill={fill}
                       height={BAR_HEIGHT}
                       rx={4}
@@ -157,6 +181,18 @@ function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0, viewEndMin }:
                       }}
                       onMouseLeave={() => setTooltip(null)}
                     />
+                    {segment.requiresOperator && segment.kind === "step" ? (
+                      <rect
+                        className="operator-pattern-overlay"
+                        data-testid="timeline-operator-pattern"
+                        fill="url(#operator-grid-pattern)"
+                        height={BAR_HEIGHT}
+                        rx={4}
+                        width={widthPx}
+                        x={x}
+                        y={0}
+                      />
+                    ) : null}
                     {canRenderLabel(segment.name, widthPx) ? (
                       <text className="segment-label" x={x + 6} y={BAR_HEIGHT / 2 + 4}>
                         {segment.name}

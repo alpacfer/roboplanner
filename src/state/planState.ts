@@ -1,4 +1,5 @@
 import type { Plan } from "../domain/types";
+import { DEFAULT_STEP_COLOR } from "../domain/colors";
 
 export const defaultPlan: Plan = {
   id: "plan-default",
@@ -9,6 +10,7 @@ export const defaultPlan: Plan = {
       name: "Prep",
       durationMin: 10,
       requiresOperator: true,
+      color: DEFAULT_STEP_COLOR,
     },
   ],
   runs: [

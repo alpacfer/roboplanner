@@ -15,11 +15,15 @@ function isValidStep(value: unknown): value is Step {
   if (!isObject(value)) {
     return false;
   }
+  const colorValid =
+    typeof value.color === "undefined" ||
+    (typeof value.color === "string" && /^#[0-9A-Fa-f]{6}$/.test(value.color));
   return (
     typeof value.id === "string" &&
     typeof value.name === "string" &&
     typeof value.durationMin === "number" &&
-    typeof value.requiresOperator === "boolean"
+    typeof value.requiresOperator === "boolean" &&
+    colorValid
   );
 }
 

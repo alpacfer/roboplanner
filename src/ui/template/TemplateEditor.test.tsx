@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import type { Step } from "../../domain/types";
@@ -11,6 +11,7 @@ const initialSteps: Step[] = [
     name: "Prep",
     durationMin: 10,
     requiresOperator: true,
+    color: "#4f7cff",
   },
 ];
 
@@ -56,5 +57,38 @@ describe("TemplateEditor", () => {
     await user.type(durationInput, "0");
 
     expect(screen.getByText("Step durationMin must be an integer greater than 0.")).toBeTruthy();
+  });
+
+  it("editing color updates state", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    const colorInput = screen.getByLabelText("Color 1") as HTMLInputElement;
+    await user.click(colorInput);
+    fireEvent.input(colorInput, { target: { value: "#00ff00" } });
+
+    expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00ff00"');
+  });
+
+  it("keeps table body column order aligned with headers", () => {
+    render(<TestHarness />);
+
+    const row = screen.getAllByTestId("step-row")[0];
+    const cells = row.querySelectorAll("td");
+    const durationInput = cells[1].querySelector('input[type="number"]');
+    const operatorInput = cells[2].querySelector('input[type="checkbox"]');
+    const colorInput = cells[3].querySelector('input[type="color"]');
+
+    expect(durationInput).toBeTruthy();
+    expect(operatorInput).toBeTruthy();
+    expect(colorInput).toBeTruthy();
+  });
+
+  it("selecting a preset color updates state", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByLabelText("Preset 1 #00b894"));
+    expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00b894"');
   });
 });
