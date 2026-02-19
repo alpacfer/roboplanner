@@ -185,7 +185,7 @@ function StepItem({
       <div className="template-step-lower">
         {isGrouped ? (
           <div className="inherited-color-note">
-            <small>Step color is inherited from the group.</small>
+            <small>Step color is inherited from the sequence.</small>
           </div>
         ) : (
           <div className="step-color-cell">
@@ -241,20 +241,20 @@ function StepItem({
             Down
           </button>
           <button
-            aria-label={`Move step ${stepIndex + 1} to previous group`}
+            aria-label={`Move step ${stepIndex + 1} to previous sequence`}
             disabled={!canMoveToPreviousGroup}
             type="button"
             onClick={() => onMoveAcrossGroups(step.id, -1)}
           >
-            Previous group
+            Previous sequence
           </button>
           <button
-            aria-label={`Move step ${stepIndex + 1} to next group`}
+            aria-label={`Move step ${stepIndex + 1} to next sequence`}
             disabled={!canMoveToNextGroup}
             type="button"
             onClick={() => onMoveAcrossGroups(step.id, 1)}
           >
-            Next group
+            Next sequence
           </button>
           <button
             aria-label={`Delete step ${stepIndex + 1}`}
@@ -391,7 +391,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
       ...stepGroups,
       {
         id: nextStepGroupId(stepGroups),
-        name: `Group ${stepGroups.length + 1}`,
+        name: `Sequence ${stepGroups.length + 1}`,
         color: DEFAULT_STEP_COLOR,
       },
     ]);
@@ -480,7 +480,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
       <div className="template-editor-header">
         <h2>Template Steps</h2>
         <button type="button" onClick={addGroup}>
-          Add group
+          Add sequence
         </button>
       </div>
       <DndContext
@@ -513,32 +513,32 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
               >
                 <div className="template-group-header">
                   <button
-                    aria-label={`${collapsed ? "Expand" : "Collapse"} group ${group.name}`}
+                    aria-label={`${collapsed ? "Expand" : "Collapse"} sequence ${group.name}`}
                     type="button"
                     onClick={() => setCollapsedGroups((current) => ({ ...current, [key]: !collapsed }))}
                   >
                     {collapsed ? "Expand" : "Collapse"}
                   </button>
                   <label className="field-row">
-                    <span>Group name</span>
+                    <span>Sequence name</span>
                     <input
-                      aria-label={`Group name ${groupIndex + 1}`}
+                      aria-label={`Sequence name ${groupIndex + 1}`}
                       type="text"
                       value={group.name}
                       onChange={(event) => updateGroup(groupIndex, { ...group, name: event.target.value })}
                     />
                   </label>
                   <div className="field-row group-color-field">
-                    <span>Group color</span>
+                    <span>Sequence color</span>
                     <div className="group-color-controls">
                       <input
-                        aria-label={`Group color ${groupIndex + 1}`}
+                        aria-label={`Sequence color ${groupIndex + 1}`}
                         type="color"
                         value={groupColor}
                         onChange={(event) => updateGroup(groupIndex, { ...group, color: event.target.value })}
                       />
                       <button
-                        aria-label={`Reset group color ${groupIndex + 1} to default`}
+                        aria-label={`Reset sequence color ${groupIndex + 1} to default`}
                         type="button"
                         onClick={() =>
                           updateGroup(groupIndex, {
@@ -554,7 +554,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                       {STEP_COLOR_PRESETS.map((presetColor) => (
                         <button
                           key={presetColor}
-                          aria-label={`Group preset ${groupIndex + 1} ${presetColor}`}
+                          aria-label={`Sequence preset ${groupIndex + 1} ${presetColor}`}
                           className="color-preset-button"
                           style={{ backgroundColor: presetColor }}
                           type="button"
@@ -567,8 +567,8 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                     {errorCount > 0 ? `${errorCount} issues` : "No issues"}
                   </span>
                   <span className="group-count-label">{groupSteps.length} steps</span>
-                  <button aria-label={`Delete group ${groupIndex + 1}`} type="button" onClick={() => deleteGroup(group.id)}>
-                    Delete group
+                  <button aria-label={`Delete sequence ${groupIndex + 1}`} type="button" onClick={() => deleteGroup(group.id)}>
+                    Delete sequence
                   </button>
                 </div>
                 {!collapsed ? (
@@ -593,7 +593,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                         />
                       ))}
                     </SortableContext>
-                    {groupSteps.length === 0 ? <p className="group-empty-state">No steps in this group yet. Add one below.</p> : null}
+                    {groupSteps.length === 0 ? <p className="group-empty-state">No steps in this sequence yet. Add one below.</p> : null}
                   </StepCardDropZone>
                 ) : null}
                 <div className="group-footer-actions">
@@ -617,13 +617,13 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
               <article className="template-group-card ungrouped-card" data-testid="template-ungrouped-card">
                 <div className="template-group-header">
                   <button
-                    aria-label={`${collapsed ? "Expand" : "Collapse"} group Ungrouped`}
+                    aria-label={`${collapsed ? "Expand" : "Collapse"} sequence Unsequenced`}
                     type="button"
                     onClick={() => setCollapsedGroups((current) => ({ ...current, [UNGROUPED_KEY]: !collapsed }))}
                   >
                     {collapsed ? "Expand" : "Collapse"}
                   </button>
-                  <h3>Ungrouped</h3>
+                  <h3>Unsequenced</h3>
                   <span className={`group-error-pill ${ungroupedErrorCount > 0 ? "has-errors" : ""}`}>
                     {ungroupedErrorCount > 0 ? `${ungroupedErrorCount} issues` : "No issues"}
                   </span>
@@ -652,13 +652,13 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                       ))}
                     </SortableContext>
                     {ungroupedSteps.length === 0 ? (
-                      <p className="group-empty-state">No ungrouped steps. Move one here or create a new step.</p>
+                      <p className="group-empty-state">No unsequenced steps. Move one here or create a new step.</p>
                     ) : null}
                   </StepCardDropZone>
                 ) : null}
                 <div className="group-footer-actions">
                   <button type="button" onClick={() => addStep(UNGROUPED_KEY)}>
-                    Add ungrouped step
+                    Add unsequenced step
                   </button>
                 </div>
               </article>

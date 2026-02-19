@@ -477,7 +477,7 @@ function TimelineSvg({
               <div className="tooltip-row">
                 <span className="tooltip-key">Group:</span>
                 <span className="tooltip-value">
-                  {tooltip.segment.stepId ? (stepGroupNamesByStepId[tooltip.segment.stepId] ?? "Ungrouped") : "N/A"}
+                  {tooltip.segment.stepId ? (stepGroupNamesByStepId[tooltip.segment.stepId] ?? "Unsequenced") : "N/A"}
                 </span>
               </div>
             </>

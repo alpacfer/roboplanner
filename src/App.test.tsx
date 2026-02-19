@@ -3,13 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import App from "./App";
 
-describe("App step groups", () => {
-  it("exports scenario with stepGroups and step group assignments", async () => {
+describe("App step sequences", () => {
+  it("exports scenario with stepGroups and step sequence assignments", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Add group" }));
-    await user.click(screen.getByRole("button", { name: "Move step 1 to previous group" }));
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Move step 1 to previous sequence" }));
     await user.click(screen.getByRole("button", { name: "Export scenario" }));
 
     const scenarioText = (screen.getByLabelText("Scenario JSON") as HTMLTextAreaElement).value;
@@ -24,7 +24,7 @@ describe("App step groups", () => {
     expect(parsed.template[0].groupId).toBe(parsed.stepGroups[0].id);
   });
 
-  it("imports scenario with groups and updates editor state", async () => {
+  it("imports scenario with sequences and updates editor state", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -57,7 +57,7 @@ describe("App step groups", () => {
     expect(screen.getByTestId("template-state").textContent).toContain('"groupId":"g1"');
   });
 
-  it("uses group color override on timeline after simulate", async () => {
+  it("uses sequence color override on timeline after simulate", async () => {
     const user = userEvent.setup();
     render(<App />);
 
