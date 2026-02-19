@@ -66,3 +66,16 @@ test("add R2 and timeline updates with 2 lanes", async ({ page }) => {
   await page.getByRole("button", { name: "Simulate" }).click();
   await expect(page.getByTestId("timeline-lane")).toHaveCount(2);
 });
+
+test("capacity=1 with same start shows R2 wait block from 0 to 10", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Operator capacity").fill("1");
+  await page.getByRole("button", { name: "Add run" }).click();
+  await page.getByLabel("Run label 2").fill("R2");
+  await page.getByLabel("Run start 2").fill("0");
+
+  await page.getByRole("button", { name: "Simulate" }).click();
+  await expect(page.getByTestId("timeline-lane")).toHaveCount(2);
+  await expect(page.getByText("wait: operator")).toBeVisible();
+});

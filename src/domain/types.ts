@@ -38,3 +38,32 @@ export interface Segment {
   kind: SegmentKind;
   requiresOperator: boolean;
 }
+
+export type SimulationEventType =
+  | "RUN_READY"
+  | "STEP_START"
+  | "STEP_END"
+  | "OP_ACQUIRE"
+  | "OP_RELEASE"
+  | "WAIT_START"
+  | "WAIT_END";
+
+export interface SimulationEvent {
+  timeMin: number;
+  type: SimulationEventType;
+  runId: string;
+  stepId?: string;
+}
+
+export interface SimulationMetrics {
+  makespan: number;
+  operatorBusyMin: number;
+  operatorUtilization: number;
+  totalWaitingMin: number;
+}
+
+export interface SimulationResult {
+  segments: Segment[];
+  events: SimulationEvent[];
+  metrics: SimulationMetrics;
+}

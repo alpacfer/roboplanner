@@ -42,7 +42,12 @@ function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0 }: TimelineSvg
             {runSegments.map((segment, segmentIndex) => {
               const x = LEFT_PAD + (segment.startMin - viewStartMin) * pxPerMin;
               const widthPx = (segment.endMin - segment.startMin) * pxPerMin;
-              const fill = segment.requiresOperator ? "#f57c00" : "#4f7cff";
+              const fill =
+                segment.kind === "wait"
+                  ? "#9aa5b1"
+                  : segment.requiresOperator
+                    ? "#f57c00"
+                    : "#4f7cff";
 
               return (
                 <g key={`${segment.runId}-${segmentIndex}`}>

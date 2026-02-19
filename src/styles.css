@@ -69,6 +69,23 @@ body {
   margin-top: 1rem;
 }
 
+.settings-panel {
+  align-items: center;
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.settings-panel input[type="number"] {
+  width: 80px;
+}
+
+.checkbox-label {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
 .timeline-svg {
   background: #ffffff;
   border: 1px solid #cfd5df;
