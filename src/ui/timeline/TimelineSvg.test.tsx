@@ -5,9 +5,42 @@ import TimelineSvg from "./TimelineSvg";
 
 const runs: Run[] = [{ id: "R1", label: "R1", startMin: 0, templateId: "plan-fixture" }];
 const segments: Segment[] = [
-  { runId: "R1", name: "Prep", startMin: 0, endMin: 10, kind: "step", requiresOperator: true },
-  { runId: "R1", name: "Soak", startMin: 10, endMin: 40, kind: "step", requiresOperator: false },
-  { runId: "R1", name: "Measure", startMin: 40, endMin: 60, kind: "step", requiresOperator: true },
+  {
+    runId: "R1",
+    name: "Prep",
+    stepId: "s1",
+    startMin: 0,
+    endMin: 10,
+    kind: "step",
+    requiresOperator: true,
+    operatorInvolvement: "WHOLE",
+    operatorCheckpointAtStart: true,
+    operatorCheckpointAtEnd: true,
+  },
+  {
+    runId: "R1",
+    name: "Soak",
+    stepId: "s2",
+    startMin: 10,
+    endMin: 40,
+    kind: "step",
+    requiresOperator: false,
+    operatorInvolvement: "NONE",
+    operatorCheckpointAtStart: false,
+    operatorCheckpointAtEnd: false,
+  },
+  {
+    runId: "R1",
+    name: "Measure",
+    stepId: "s3",
+    startMin: 40,
+    endMin: 60,
+    kind: "step",
+    requiresOperator: true,
+    operatorInvolvement: "WHOLE",
+    operatorCheckpointAtStart: true,
+    operatorCheckpointAtEnd: true,
+  },
 ];
 
 describe("TimelineSvg", () => {
@@ -42,6 +75,9 @@ describe("TimelineSvg", () => {
         endMin: 25,
         kind: "step",
         requiresOperator: true,
+        operatorInvolvement: "WHOLE",
+        operatorCheckpointAtStart: true,
+        operatorCheckpointAtEnd: true,
       },
       {
         runId: "R2",
@@ -50,6 +86,9 @@ describe("TimelineSvg", () => {
         endMin: 55,
         kind: "step",
         requiresOperator: false,
+        operatorInvolvement: "NONE",
+        operatorCheckpointAtStart: false,
+        operatorCheckpointAtEnd: false,
       },
       {
         runId: "R2",
@@ -58,6 +97,9 @@ describe("TimelineSvg", () => {
         endMin: 75,
         kind: "step",
         requiresOperator: true,
+        operatorInvolvement: "WHOLE",
+        operatorCheckpointAtStart: true,
+        operatorCheckpointAtEnd: true,
       },
     ];
 
@@ -80,6 +122,7 @@ describe("TimelineSvg", () => {
 
     expect(tooltip.textContent).toContain("Prep");
     expect(tooltip.textContent).toContain("Start: 0 min, End: 10 min");
+    expect(tooltip.textContent).toContain("Whole step");
     expect(tooltip.textContent).toContain("Requires operator: Yes");
   });
 
@@ -138,5 +181,102 @@ describe("TimelineSvg", () => {
     expect(rects[0].getAttribute("fill")).toBe("#00ff00");
     const patternRects = screen.getAllByTestId("timeline-operator-pattern");
     expect(patternRects).toHaveLength(2);
+  });
+
+  it("renders start and end checkpoints as checkpoint segments", () => {
+    const checkpointSegments: Segment[] = [
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Start checkpoint",
+        startMin: 0,
+        endMin: 0,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START",
+        operatorPhase: "START",
+      },
+      {
+        runId: "R1",
+        stepId: "s2",
+        name: "End checkpoint",
+        startMin: 20,
+        endMin: 20,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "END",
+        operatorPhase: "END",
+      },
+    ];
+
+    render(<TimelineSvg pxPerMin={4} runs={runs} segments={checkpointSegments} />);
+    expect(screen.getAllByTestId("timeline-operator-start-checkpoint")).toHaveLength(1);
+    expect(screen.getAllByTestId("timeline-operator-end-checkpoint")).toHaveLength(1);
+  });
+
+  it("visually reserves space for checkpoints inside a step duration", () => {
+    const checkpointSegments: Segment[] = [
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Task start checkpoint",
+        startMin: 0,
+        endMin: 0,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+        operatorPhase: "START",
+      },
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Task",
+        startMin: 0,
+        endMin: 10,
+        kind: "step",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+      },
+      {
+        runId: "R1",
+        stepId: "s1",
+        name: "Task end checkpoint",
+        startMin: 10,
+        endMin: 10,
+        kind: "operator_checkpoint",
+        requiresOperator: true,
+        operatorInvolvement: "START_END",
+        operatorPhase: "END",
+      },
+    ];
+
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={checkpointSegments} />);
+
+    const stepRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task"]',
+    ) as SVGRectElement;
+    const startCheckpointRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task start checkpoint"]',
+    ) as SVGRectElement;
+    const endCheckpointRect = document.querySelector(
+      '[data-testid="timeline-rect"][data-segment-name="Task end checkpoint"]',
+    ) as SVGRectElement;
+
+    const rawDurationWidth = 100;
+    const stepX = Number.parseFloat(stepRect.getAttribute("x") ?? "0");
+    const stepWidth = Number.parseFloat(stepRect.getAttribute("width") ?? "0");
+    const startX = Number.parseFloat(startCheckpointRect.getAttribute("x") ?? "0");
+    const startWidth = Number.parseFloat(startCheckpointRect.getAttribute("width") ?? "0");
+    const endX = Number.parseFloat(endCheckpointRect.getAttribute("x") ?? "0");
+    const endWidth = Number.parseFloat(endCheckpointRect.getAttribute("width") ?? "0");
+
+    expect(stepWidth).toBeLessThan(rawDurationWidth);
+    expect(stepX).toBeCloseTo(startX + startWidth, 3);
+    expect(endX).toBeCloseTo(stepX + stepWidth, 3);
+    expect(startWidth + stepWidth + endWidth).toBeCloseTo(rawDurationWidth, 3);
+
+    fireEvent.mouseEnter(stepRect, { clientX: 200, clientY: 150 });
+    const tooltip = screen.getByTestId("timeline-tooltip");
+    expect(tooltip.textContent).toContain("Start: 0 min, End: 10 min");
   });
 });

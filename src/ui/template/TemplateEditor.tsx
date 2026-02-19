@@ -1,23 +1,18 @@
-import { DEFAULT_STEP_COLOR, normalizeStepColor } from "../../domain/colors";
+import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStep } from "../../domain/validation";
-import type { Step } from "../../domain/types";
+import type { OperatorInvolvement, Step } from "../../domain/types";
 
 interface TemplateEditorProps {
   steps: Step[];
   onChange: (steps: Step[]) => void;
 }
 
-const STEP_COLOR_PRESETS = [
-  "#4f7cff",
-  "#00b894",
-  "#ff7675",
-  "#f39c12",
-  "#8e44ad",
-  "#16a085",
-  "#e84393",
-  "#2d3436",
-  "#0984e3",
-  "#e17055",
+const OPERATOR_INVOLVEMENT_OPTIONS: Array<{ value: OperatorInvolvement; label: string }> = [
+  { value: "NONE", label: "None" },
+  { value: "WHOLE", label: "Whole step" },
+  { value: "START", label: "Start only" },
+  { value: "END", label: "End only" },
+  { value: "START_END", label: "Start + End" },
 ];
 
 let stepIdCounter = 1000;
@@ -42,7 +37,7 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
         id: nextStepId(),
         name: `Step ${steps.length + 1}`,
         durationMin: 1,
-        requiresOperator: false,
+        operatorInvolvement: "NONE",
         color: DEFAULT_STEP_COLOR,
       },
     ]);
@@ -75,7 +70,7 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
           <tr>
             <th>Name</th>
             <th>Duration (min)</th>
-            <th>Operator</th>
+            <th>Operator involvement</th>
             <th>Color</th>
             <th>Actions</th>
             <th>Validation</th>
@@ -114,17 +109,22 @@ function TemplateEditor({ steps, onChange }: TemplateEditorProps) {
                   />
                 </td>
                 <td>
-                  <input
-                    aria-label={`Requires operator ${index + 1}`}
-                    checked={step.requiresOperator}
-                    type="checkbox"
+                  <select
+                    aria-label={`Operator involvement ${index + 1}`}
+                    value={step.operatorInvolvement}
                     onChange={(event) => {
                       updateStep(index, {
                         ...step,
-                        requiresOperator: event.target.checked,
+                        operatorInvolvement: event.target.value as OperatorInvolvement,
                       });
                     }}
-                  />
+                  >
+                    {OPERATOR_INVOLVEMENT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <div className="step-color-cell">

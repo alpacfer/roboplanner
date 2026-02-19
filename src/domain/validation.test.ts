@@ -17,7 +17,7 @@ describe("validation", () => {
         id: "s1",
         name: "Prep",
         durationMin: 0,
-        requiresOperator: false,
+        operatorInvolvement: "NONE",
       }),
     ).not.toHaveLength(0);
   });
@@ -60,7 +60,7 @@ describe("validation", () => {
         id: "s1",
         name: "",
         durationMin: 10,
-        requiresOperator: false,
+        operatorInvolvement: "NONE",
       }),
     ).not.toHaveLength(0);
 

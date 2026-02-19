@@ -9,7 +9,7 @@ export const defaultPlan: Plan = {
       id: "step-1",
       name: "Prep",
       durationMin: 10,
-      requiresOperator: true,
+      operatorInvolvement: "WHOLE",
       color: DEFAULT_STEP_COLOR,
     },
   ],

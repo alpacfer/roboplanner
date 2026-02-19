@@ -21,11 +21,11 @@ describe("default plan", () => {
         },
         "template": [
           {
-            "color": "#4f7cff",
+            "color": "#4e79a7",
             "durationMin": 10,
             "id": "step-1",
             "name": "Prep",
-            "requiresOperator": true,
+            "operatorInvolvement": "WHOLE",
           },
         ],
       }

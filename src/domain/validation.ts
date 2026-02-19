@@ -1,4 +1,5 @@
 import type { PlanSettings, Run, Step } from "./types";
+import { normalizeOperatorInvolvement } from "./operator";
 
 export function isPositiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
@@ -21,6 +22,11 @@ export function validateStep(step: Step): string[] {
 
   if (!isPositiveInteger(step.durationMin)) {
     errors.push("Step durationMin must be an integer greater than 0.");
+  }
+
+  const involvement = normalizeOperatorInvolvement(step);
+  if (!["NONE", "WHOLE", "START", "END", "START_END"].includes(involvement)) {
+    errors.push("Step operator involvement is invalid.");
   }
 
   return errors;

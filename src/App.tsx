@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { normalizeStepColor } from "./domain/colors";
+import { normalizeOperatorInvolvement } from "./domain/operator";
 import type { PlanSettings, Run, Segment, SimulationMetrics, Step } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
@@ -15,7 +16,11 @@ const MAX_PX_PER_MIN = 40;
 function App() {
   const initialPlan = useMemo(() => createInitialPlans()[0], []);
   const [template, setTemplate] = useState<Step[]>(
-    initialPlan.template.map((step) => ({ ...step, color: normalizeStepColor(step.color) })),
+    initialPlan.template.map((step) => ({
+      ...step,
+      operatorInvolvement: normalizeOperatorInvolvement(step),
+      color: normalizeStepColor(step.color),
+    })),
   );
   const [runs, setRuns] = useState(initialPlan.runs);
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
@@ -41,7 +46,13 @@ function App() {
     runs: Run[];
     settings: PlanSettings;
   }) => {
-    setTemplate(payload.template.map((step) => ({ ...step, color: normalizeStepColor(step.color) })));
+    setTemplate(
+      payload.template.map((step) => ({
+        ...step,
+        operatorInvolvement: normalizeOperatorInvolvement(step),
+        color: normalizeStepColor(step.color),
+      })),
+    );
     setRuns(payload.runs);
     setSettings(payload.settings);
     setSegments([]);

@@ -18,7 +18,7 @@ function buildGeneratedPlan(
     id: `s${index + 1}`,
     name: `Step${index + 1}`,
     durationMin,
-    requiresOperator: operatorFlags[index],
+    operatorInvolvement: operatorFlags[index] ? "WHOLE" : "NONE",
   }));
   const runs = runStarts.map((startMin, index) => ({
     id: `R${index + 1}`,

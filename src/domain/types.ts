@@ -1,10 +1,13 @@
 export type QueuePolicy = "FIFO" | "SPT" | "PRIORITY";
+export type OperatorInvolvement = "NONE" | "WHOLE" | "START" | "END" | "START_END";
+export type OperatorPhase = "START" | "END" | "WHOLE";
 
 export interface Step {
   id: string;
   name: string;
   durationMin: number;
-  requiresOperator: boolean;
+  operatorInvolvement: OperatorInvolvement;
+  requiresOperator?: boolean;
   color?: string;
 }
 
@@ -28,7 +31,7 @@ export interface Plan {
   settings: PlanSettings;
 }
 
-export type SegmentKind = "step" | "wait";
+export type SegmentKind = "step" | "wait" | "operator_checkpoint";
 
 export interface Segment {
   runId: string;
@@ -38,6 +41,10 @@ export interface Segment {
   endMin: number;
   kind: SegmentKind;
   requiresOperator: boolean;
+  operatorInvolvement?: OperatorInvolvement;
+  operatorPhase?: OperatorPhase;
+  operatorCheckpointAtStart?: boolean;
+  operatorCheckpointAtEnd?: boolean;
 }
 
 export type SimulationEventType =
@@ -54,6 +61,7 @@ export interface SimulationEvent {
   type: SimulationEventType;
   runId: string;
   stepId?: string;
+  phase?: OperatorPhase;
 }
 
 export interface SimulationMetrics {

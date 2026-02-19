@@ -24,11 +24,59 @@ const BAR_HEIGHT = 28;
 const LABEL_HORIZONTAL_PADDING = 10;
 const APPROX_CHAR_WIDTH = 5;
 const MIN_AXIS_LABEL_SPACING_PX = 46;
+const CHECKPOINT_WIDTH_PX = 8;
+const MIN_STEP_WIDTH_PX = 2;
 
 interface TooltipState {
   x: number;
   y: number;
   segment: Segment;
+}
+
+interface CheckpointPresence {
+  hasStart: boolean;
+  hasEnd: boolean;
+}
+
+interface StepLayout {
+  startCheckpointWidth: number;
+  endCheckpointWidth: number;
+  stepWidth: number;
+}
+
+function involvementLabel(segment: Segment): string {
+  switch (segment.operatorInvolvement) {
+    case "WHOLE":
+      return "Whole step";
+    case "START":
+      return "Start only";
+    case "END":
+      return "End only";
+    case "START_END":
+      return "Start + End";
+    default:
+      return "None";
+  }
+}
+
+function checkpointLabel(segment: Segment): string {
+  if (segment.operatorPhase === "START") {
+    return "Start";
+  }
+  if (segment.operatorPhase === "END") {
+    return "End";
+  }
+  return "Unknown";
+}
+
+function checkpointTestId(segment: Segment): string {
+  if (segment.operatorPhase === "START") {
+    return "timeline-operator-start-checkpoint";
+  }
+  if (segment.operatorPhase === "END") {
+    return "timeline-operator-end-checkpoint";
+  }
+  return "timeline-operator-checkpoint";
 }
 
 function canRenderLabel(name: string, widthPx: number): boolean {
@@ -68,6 +116,66 @@ function buildAxisTicks(viewStartMin: number, viewEndMin: number, pxPerMin: numb
   return ticks;
 }
 
+function stepKey(runId: string, stepId: string): string {
+  return `${runId}::${stepId}`;
+}
+
+function buildCheckpointPresence(segments: Segment[]): Map<string, CheckpointPresence> {
+  const presence = new Map<string, CheckpointPresence>();
+  for (const segment of segments) {
+    if (segment.kind !== "operator_checkpoint" || !segment.stepId) {
+      continue;
+    }
+    const key = stepKey(segment.runId, segment.stepId);
+    const current = presence.get(key) ?? { hasStart: false, hasEnd: false };
+    if (segment.operatorPhase === "START") {
+      current.hasStart = true;
+    }
+    if (segment.operatorPhase === "END") {
+      current.hasEnd = true;
+    }
+    presence.set(key, current);
+  }
+  return presence;
+}
+
+function buildStepSpans(segments: Segment[]): Map<string, { startMin: number; endMin: number }> {
+  const stepSpans = new Map<string, { startMin: number; endMin: number }>();
+  for (const segment of segments) {
+    if (segment.kind !== "step" || !segment.stepId) {
+      continue;
+    }
+    stepSpans.set(stepKey(segment.runId, segment.stepId), {
+      startMin: segment.startMin,
+      endMin: segment.endMin,
+    });
+  }
+  return stepSpans;
+}
+
+function computeStepLayout(
+  rawWidthPx: number,
+  hasStartCheckpoint: boolean,
+  hasEndCheckpoint: boolean,
+): StepLayout {
+  let startCheckpointWidth = hasStartCheckpoint ? CHECKPOINT_WIDTH_PX : 0;
+  let endCheckpointWidth = hasEndCheckpoint ? CHECKPOINT_WIDTH_PX : 0;
+  const markerTotal = startCheckpointWidth + endCheckpointWidth;
+  const markerBudget = Math.max(0, rawWidthPx - MIN_STEP_WIDTH_PX);
+
+  if (markerTotal > markerBudget && markerTotal > 0) {
+    const ratio = markerBudget / markerTotal;
+    startCheckpointWidth *= ratio;
+    endCheckpointWidth *= ratio;
+  }
+
+  return {
+    startCheckpointWidth,
+    endCheckpointWidth,
+    stepWidth: Math.max(MIN_STEP_WIDTH_PX, rawWidthPx - startCheckpointWidth - endCheckpointWidth),
+  };
+}
+
 function TimelineSvg({
   runs,
   segments,
@@ -82,6 +190,8 @@ function TimelineSvg({
   const width = TIMELINE_LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + TIMELINE_RIGHT_PAD;
   const height = TOP_PAD + AXIS_HEIGHT + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
   const visibleSegments = filterSegmentsByViewport(segments, viewStartMin, effectiveViewEndMin);
+  const checkpointPresenceByStep = buildCheckpointPresence(segments);
+  const stepSpansByStep = buildStepSpans(segments);
   const axisTicks = buildAxisTicks(viewStartMin, effectiveViewEndMin, pxPerMin);
 
   return (
@@ -103,6 +213,9 @@ function TimelineSvg({
             patternTransform="rotate(45)"
           >
             <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(0,0,0,0.35)" strokeWidth="2" />
+          </pattern>
+          <pattern id="operator-marker-pattern" width="6" height="6" patternUnits="userSpaceOnUse">
+            <path d="M 0 6 L 6 0" stroke="rgba(0,0,0,0.45)" strokeWidth="1.2" />
           </pattern>
         </defs>
         <g data-testid="timeline-axis">
@@ -141,8 +254,41 @@ function TimelineSvg({
                 {run.label}
               </text>
               {runSegments.map((segment, segmentIndex) => {
-                const x = segmentX(segment.startMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
-                const widthPx = segmentWidth(segment.startMin, segment.endMin, pxPerMin);
+                const xRaw = segmentX(segment.startMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
+                const widthPxRaw = segmentWidth(segment.startMin, segment.endMin, pxPerMin);
+                let x = xRaw;
+                let widthPx = widthPxRaw;
+
+                if (segment.kind === "step" && segment.stepId) {
+                  const presence = checkpointPresenceByStep.get(stepKey(segment.runId, segment.stepId));
+                  const layout = computeStepLayout(
+                    widthPxRaw,
+                    presence?.hasStart ?? false,
+                    presence?.hasEnd ?? false,
+                  );
+                  x = xRaw + layout.startCheckpointWidth;
+                  widthPx = layout.stepWidth;
+                } else if (segment.kind === "operator_checkpoint") {
+                  let markerWidth = CHECKPOINT_WIDTH_PX;
+                  if (segment.stepId) {
+                    const key = stepKey(segment.runId, segment.stepId);
+                    const presence = checkpointPresenceByStep.get(key);
+                    const span = stepSpansByStep.get(key);
+                    if (presence && span) {
+                      const stepRawWidth = segmentWidth(span.startMin, span.endMin, pxPerMin);
+                      const layout = computeStepLayout(stepRawWidth, presence.hasStart, presence.hasEnd);
+                      if (segment.operatorPhase === "START") {
+                        markerWidth = Math.max(1, layout.startCheckpointWidth);
+                        x = segmentX(span.startMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
+                      } else if (segment.operatorPhase === "END") {
+                        markerWidth = Math.max(1, layout.endCheckpointWidth);
+                        const endX = segmentX(span.endMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
+                        x = endX - markerWidth;
+                      }
+                    }
+                  }
+                  widthPx = Math.max(1, markerWidth);
+                }
                 const fill =
                   segment.kind === "wait"
                     ? "#9aa5b1"
@@ -154,6 +300,7 @@ function TimelineSvg({
                   <g key={`${segment.runId}-${segmentIndex}`}>
                     <rect
                       data-testid="timeline-rect"
+                      data-segment-kind={segment.kind}
                       data-segment-name={segment.name}
                       fill={fill}
                       height={BAR_HEIGHT}
@@ -181,7 +328,18 @@ function TimelineSvg({
                       }}
                       onMouseLeave={() => setTooltip(null)}
                     />
-                    {segment.requiresOperator && segment.kind === "step" ? (
+                    {segment.kind === "operator_checkpoint" ? (
+                      <rect
+                        className="operator-pattern-overlay"
+                        data-testid={checkpointTestId(segment)}
+                        fill="url(#operator-marker-pattern)"
+                        height={BAR_HEIGHT}
+                        width={widthPx}
+                        x={x}
+                        y={0}
+                      />
+                    ) : null}
+                    {segment.operatorInvolvement === "WHOLE" && segment.kind === "step" ? (
                       <rect
                         className="operator-pattern-overlay"
                         data-testid="timeline-operator-pattern"
@@ -193,7 +351,7 @@ function TimelineSvg({
                         y={0}
                       />
                     ) : null}
-                    {canRenderLabel(segment.name, widthPx) ? (
+                    {segment.kind === "step" && canRenderLabel(segment.name, widthPx) ? (
                       <text className="segment-label" x={x + 6} y={BAR_HEIGHT / 2 + 4}>
                         {segment.name}
                       </text>
@@ -211,11 +369,37 @@ function TimelineSvg({
           data-testid="timeline-tooltip"
           style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}
         >
-          <div>{tooltip.segment.name}</div>
-          <div>
+          <div className="tooltip-title">{tooltip.segment.name}</div>
+          <div className="tooltip-row">
+            <span className="tooltip-key">Start:</span>
+            <span className="tooltip-value">{tooltip.segment.startMin} min</span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-key">End:</span>
+            <span className="tooltip-value">{tooltip.segment.endMin} min</span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-key">Operator:</span>
+            <span
+              className={`tooltip-badge ${
+                tooltip.segment.requiresOperator ? "tooltip-badge-op" : "tooltip-badge-auto"
+              }`}
+            >
+              {involvementLabel(tooltip.segment)}
+            </span>
+          </div>
+          {tooltip.segment.kind === "operator_checkpoint" ? (
+            <div className="tooltip-row">
+              <span className="tooltip-key">Checkpoint:</span>
+              <span className="tooltip-value">{checkpointLabel(tooltip.segment)}</span>
+            </div>
+          ) : null}
+          <div className="tooltip-row tooltip-legacy">
             Start: {tooltip.segment.startMin} min, End: {tooltip.segment.endMin} min
           </div>
-          <div>Requires operator: {tooltip.segment.requiresOperator ? "Yes" : "No"}</div>
+          <div className="tooltip-row tooltip-legacy">
+            Requires operator: {tooltip.segment.requiresOperator ? "Yes" : "No"}
+          </div>
         </div>
       ) : null}
     </div>

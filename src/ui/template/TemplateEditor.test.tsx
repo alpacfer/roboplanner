@@ -10,8 +10,8 @@ const initialSteps: Step[] = [
     id: "step-1",
     name: "Prep",
     durationMin: 10,
-    requiresOperator: true,
-    color: "#4f7cff",
+    operatorInvolvement: "WHOLE",
+    color: "#4e79a7",
   },
 ];
 
@@ -76,7 +76,7 @@ describe("TemplateEditor", () => {
     const row = screen.getAllByTestId("step-row")[0];
     const cells = row.querySelectorAll("td");
     const durationInput = cells[1].querySelector('input[type="number"]');
-    const operatorInput = cells[2].querySelector('input[type="checkbox"]');
+    const operatorInput = cells[2].querySelector("select");
     const colorInput = cells[3].querySelector('input[type="color"]');
 
     expect(durationInput).toBeTruthy();
@@ -88,7 +88,15 @@ describe("TemplateEditor", () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    await user.click(screen.getByLabelText("Preset 1 #00b894"));
-    expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#00b894"');
+    await user.click(screen.getByLabelText("Preset 1 #4e79a7"));
+    expect(screen.getByTestId("steps-state").textContent).toContain('"color":"#4e79a7"');
+  });
+
+  it("operator involvement dropdown persists selection", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.selectOptions(screen.getByLabelText("Operator involvement 1"), "START_END");
+    expect(screen.getByTestId("steps-state").textContent).toContain('"operatorInvolvement":"START_END"');
   });
 });

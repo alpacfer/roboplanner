@@ -444,4 +444,3 @@ A MVP is done when:
 - All tests listed for that MVP pass
 - Manual sanity check matches expected schedule for the fixture(s)
 - No TypeScript errors
-

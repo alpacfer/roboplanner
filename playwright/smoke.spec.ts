@@ -28,7 +28,7 @@ test("create template and run baseline simulation shows 3 bars", async ({ page }
 
   await page.getByLabel("Name 1").fill("Prep");
   await page.getByLabel("Duration 1").fill("10");
-  await page.getByLabel("Requires operator 1").check();
+  await page.getByLabel("Operator involvement 1").selectOption("WHOLE");
 
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByLabel("Name 2").fill("Soak");
@@ -37,7 +37,7 @@ test("create template and run baseline simulation shows 3 bars", async ({ page }
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByLabel("Name 3").fill("Measure");
   await page.getByLabel("Duration 3").fill("20");
-  await page.getByLabel("Requires operator 3").check();
+  await page.getByLabel("Operator involvement 3").selectOption("WHOLE");
 
   await page.getByRole("button", { name: "Simulate" }).click();
   await expect(page.getByTestId("timeline-rect")).toHaveCount(3);
@@ -48,7 +48,7 @@ test("add R2 and timeline updates with 2 lanes", async ({ page }) => {
 
   await page.getByLabel("Name 1").fill("Prep");
   await page.getByLabel("Duration 1").fill("10");
-  await page.getByLabel("Requires operator 1").check();
+  await page.getByLabel("Operator involvement 1").selectOption("WHOLE");
 
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByLabel("Name 2").fill("Soak");
@@ -57,7 +57,7 @@ test("add R2 and timeline updates with 2 lanes", async ({ page }) => {
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByLabel("Name 3").fill("Measure");
   await page.getByLabel("Duration 3").fill("20");
-  await page.getByLabel("Requires operator 3").check();
+  await page.getByLabel("Operator involvement 3").selectOption("WHOLE");
 
   await page.getByRole("button", { name: "Add run" }).click();
   await page.getByLabel("Run label 2").fill("R2");
@@ -77,7 +77,26 @@ test("capacity=1 with same start shows R2 wait block from 0 to 10", async ({ pag
 
   await page.getByRole("button", { name: "Simulate" }).click();
   await expect(page.getByTestId("timeline-lane")).toHaveCount(2);
-  await expect(page.getByText("wait: operator")).toBeVisible();
+  await expect(page.locator('[data-testid="timeline-rect"][data-segment-kind="wait"]')).toHaveCount(1);
+});
+
+test("end-only involvement delays completion when operator unavailable at step end", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Duration 1").fill("20");
+  await page.getByLabel("Operator involvement 1").selectOption("WHOLE");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Name 2").fill("Finish");
+  await page.getByLabel("Duration 2").fill("1");
+  await page.getByLabel("Operator involvement 2").selectOption("END");
+
+  await page.getByRole("button", { name: "Add run" }).click();
+  await page.getByLabel("Run label 2").fill("R2");
+  await page.getByLabel("Run start 2").fill("10");
+  await page.getByLabel("Operator capacity").fill("1");
+
+  await page.getByRole("button", { name: "Simulate" }).click();
+  await expect(page.locator('[data-testid="timeline-rect"][data-segment-kind="wait"]')).toHaveCount(2);
 });
 
 test("export readable scenario JSON and import edited JSON", async ({ page }) => {
@@ -91,14 +110,14 @@ test("export readable scenario JSON and import edited JSON", async ({ page }) =>
 
   const scenarioTextArea = page.getByTestId("scenario-json");
   const exportedText = await scenarioTextArea.inputValue();
-  expect(exportedText).toContain('"version": 1');
+  expect(exportedText).toContain('"version": 2');
   expect(exportedText).toContain('"template"');
   expect(exportedText).toContain('"runs"');
   expect(exportedText).toContain('"settings"');
 
   const editedPayload = JSON.parse(exportedText) as {
     version: number;
-    template: Array<{ id: string; name: string; durationMin: number; requiresOperator: boolean }>;
+    template: Array<{ id: string; name: string; durationMin: number; operatorInvolvement: string }>;
     runs: Array<{ id: string; label: string; startMin: number; templateId: string }>;
     settings: { operatorCapacity: number; queuePolicy: string };
   };
@@ -245,7 +264,7 @@ test("step color picker controls bar color and operator uses grid pattern overla
   await page.getByLabel("Name 1").fill("Prep");
   await page.getByLabel("Duration 1").fill("20");
   await page.getByLabel("Color 1").fill("#00ff00");
-  await page.getByLabel("Requires operator 1").check();
+  await page.getByLabel("Operator involvement 1").selectOption("WHOLE");
   await page.getByRole("button", { name: "Simulate" }).click();
 
   const prepRect = page.locator('[data-testid="timeline-rect"][data-segment-name="Prep"]').first();
@@ -253,3 +272,13 @@ test("step color picker controls bar color and operator uses grid pattern overla
   await expect(page.getByTestId("timeline-operator-pattern").first()).toBeVisible();
   await expect(page.locator('[data-testid="timeline-svg"] .segment-label', { hasText: /^Prep$/ })).toBeVisible();
 });
+
+test("start+end involvement renders endpoint markers", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Operator involvement 1").selectOption("START_END");
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  await expect(page.getByTestId("timeline-operator-start-checkpoint").first()).toBeVisible();
+  await expect(page.getByTestId("timeline-operator-end-checkpoint").first()).toBeVisible();
+});
+

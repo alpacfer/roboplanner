@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { deserializeScenarioData, migrateScenarioData } from "./schema";
 
 const validPayload = {
-  version: 1 as const,
-  template: [{ id: "s1", name: "Prep", durationMin: 10, requiresOperator: true }],
+  version: 2 as const,
+  template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE" as const }],
   runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
   settings: { operatorCapacity: 1, queuePolicy: "FIFO" as const },
 };
@@ -12,7 +12,7 @@ const validPayload = {
 describe("scenario schema robustness (property-based)", () => {
   it("rejects unsupported schema versions", () => {
     fc.assert(
-      fc.property(fc.integer().filter((version) => version !== 1), (version) => {
+      fc.property(fc.integer().filter((version) => version !== 1 && version !== 2), (version) => {
         expect(() =>
           migrateScenarioData({
             ...validPayload,

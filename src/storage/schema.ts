@@ -1,7 +1,8 @@
-import type { PlanSettings, Run, Step } from "../domain/types";
+import { mapLegacyRequiresOperator } from "../domain/operator";
+import type { OperatorInvolvement, PlanSettings, Run, Step } from "../domain/types";
 
-export interface ScenarioDataV1 {
-  version: 1;
+export interface ScenarioDataV2 {
+  version: 2;
   template: Step[];
   runs: Run[];
   settings: PlanSettings;
@@ -15,6 +16,13 @@ function isValidStep(value: unknown): value is Step {
   if (!isObject(value)) {
     return false;
   }
+  const involvementValid =
+    value.operatorInvolvement === "NONE" ||
+    value.operatorInvolvement === "WHOLE" ||
+    value.operatorInvolvement === "START" ||
+    value.operatorInvolvement === "END" ||
+    value.operatorInvolvement === "START_END";
+
   const colorValid =
     typeof value.color === "undefined" ||
     (typeof value.color === "string" && /^#[0-9A-Fa-f]{6}$/.test(value.color));
@@ -22,7 +30,7 @@ function isValidStep(value: unknown): value is Step {
     typeof value.id === "string" &&
     typeof value.name === "string" &&
     typeof value.durationMin === "number" &&
-    typeof value.requiresOperator === "boolean" &&
+    involvementValid &&
     colorValid
   );
 }
@@ -49,9 +57,9 @@ function isValidPlanSettings(value: unknown): value is PlanSettings {
   );
 }
 
-export function serializeScenarioData(input: Omit<ScenarioDataV1, "version">): string {
-  const payload: ScenarioDataV1 = {
-    version: 1,
+export function serializeScenarioData(input: Omit<ScenarioDataV2, "version">): string {
+  const payload: ScenarioDataV2 = {
+    version: 2,
     template: input.template,
     runs: input.runs,
     settings: input.settings,
@@ -60,20 +68,60 @@ export function serializeScenarioData(input: Omit<ScenarioDataV1, "version">): s
   return JSON.stringify(payload, null, 2);
 }
 
-export function migrateScenarioData(raw: unknown): ScenarioDataV1 {
+function isLegacyStep(value: unknown): value is Omit<Step, "operatorInvolvement"> & { requiresOperator: boolean } {
+  if (!isObject(value)) {
+    return false;
+  }
+  return (
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.durationMin === "number" &&
+    typeof value.requiresOperator === "boolean"
+  );
+}
+
+function migrateLegacyTemplate(template: unknown[]): Step[] {
+  if (!template.every((step) => isLegacyStep(step))) {
+    throw new Error("Scenario payload has invalid template data.");
+  }
+
+  return template.map((step) => ({
+    id: step.id,
+    name: step.name,
+    durationMin: step.durationMin,
+    operatorInvolvement: mapLegacyRequiresOperator(step.requiresOperator),
+    color: step.color,
+  }));
+}
+
+export function migrateScenarioData(raw: unknown): ScenarioDataV2 {
   if (!isObject(raw)) {
     throw new Error("Scenario payload must be a JSON object.");
   }
 
-  if (raw.version !== 1) {
+  const { template, runs, settings } = raw;
+
+  if (raw.version !== 1 && raw.version !== 2) {
     throw new Error(`Unsupported scenario version: ${String(raw.version)}.`);
   }
 
-  const { template, runs, settings } = raw;
-
-  if (!Array.isArray(template) || !template.every((step) => isValidStep(step))) {
-    throw new Error("Scenario payload has invalid template data.");
+  let normalizedTemplate: Step[];
+  if (raw.version === 1) {
+    if (!Array.isArray(template)) {
+      throw new Error("Scenario payload has invalid template data.");
+    }
+    normalizedTemplate = migrateLegacyTemplate(template);
+  } else {
+    if (!Array.isArray(template) || !template.every((step) => isValidStep(step))) {
+      throw new Error("Scenario payload has invalid template data.");
+    }
+    normalizedTemplate = template;
   }
+
+  const normalizedTemplateWithFallback = normalizedTemplate.map((step) => ({
+    ...step,
+    operatorInvolvement: (step.operatorInvolvement ?? "NONE") as OperatorInvolvement,
+  }));
 
   if (!Array.isArray(runs) || !runs.every((run) => isValidRun(run))) {
     throw new Error("Scenario payload has invalid runs data.");
@@ -84,14 +132,14 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV1 {
   }
 
   return {
-    version: 1,
-    template,
+    version: 2,
+    template: normalizedTemplateWithFallback,
     runs,
     settings,
   };
 }
 
-export function deserializeScenarioData(input: string): ScenarioDataV1 {
+export function deserializeScenarioData(input: string): ScenarioDataV2 {
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
