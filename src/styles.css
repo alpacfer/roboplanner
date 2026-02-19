@@ -83,6 +83,12 @@ body {
   width: 46px;
 }
 
+.group-color-controls {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+}
+
 .group-error-pill {
   background: #dcfce7;
   border-radius: 999px;

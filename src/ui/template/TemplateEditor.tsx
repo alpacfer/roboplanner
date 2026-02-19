@@ -528,27 +528,41 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                       onChange={(event) => updateGroup(groupIndex, { ...group, name: event.target.value })}
                     />
                   </label>
-                  <label className="field-row group-color-field">
+                  <div className="field-row group-color-field">
                     <span>Group color</span>
-                    <input
-                      aria-label={`Group color ${groupIndex + 1}`}
-                      type="color"
-                      value={groupColor}
-                      onChange={(event) => updateGroup(groupIndex, { ...group, color: event.target.value })}
-                    />
-                    <button
-                      aria-label={`Reset group color ${groupIndex + 1} to default`}
-                      type="button"
-                      onClick={() =>
-                        updateGroup(groupIndex, {
-                          ...group,
-                          color: DEFAULT_STEP_COLOR,
-                        })
-                      }
-                    >
-                      Default
-                    </button>
-                  </label>
+                    <div className="group-color-controls">
+                      <input
+                        aria-label={`Group color ${groupIndex + 1}`}
+                        type="color"
+                        value={groupColor}
+                        onChange={(event) => updateGroup(groupIndex, { ...group, color: event.target.value })}
+                      />
+                      <button
+                        aria-label={`Reset group color ${groupIndex + 1} to default`}
+                        type="button"
+                        onClick={() =>
+                          updateGroup(groupIndex, {
+                            ...group,
+                            color: DEFAULT_STEP_COLOR,
+                          })
+                        }
+                      >
+                        Default
+                      </button>
+                    </div>
+                    <div className="step-color-presets">
+                      {STEP_COLOR_PRESETS.map((presetColor) => (
+                        <button
+                          key={presetColor}
+                          aria-label={`Group preset ${groupIndex + 1} ${presetColor}`}
+                          className="color-preset-button"
+                          style={{ backgroundColor: presetColor }}
+                          type="button"
+                          onClick={() => updateGroup(groupIndex, { ...group, color: presetColor })}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   <span className={`group-error-pill ${errorCount > 0 ? "has-errors" : ""}`}>
                     {errorCount > 0 ? `${errorCount} issues` : "No issues"}
                   </span>

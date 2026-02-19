@@ -139,6 +139,16 @@ describe("TemplateEditor", () => {
     expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#4e79a7"');
   });
 
+  it("group color supports preset swatches", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add group" }));
+    await user.click(screen.getByRole("button", { name: "Group preset 1 #f28e2b" }));
+
+    expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#f28e2b"');
+  });
+
   it("shows inline and group summary validation", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
