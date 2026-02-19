@@ -1,4 +1,4 @@
-export type QueuePolicy = "FIFO" | "SPT" | "PRIORITY";
+export type QueuePolicy = "FIFO";
 export type OperatorInvolvement = "NONE" | "WHOLE" | "START" | "END" | "START_END";
 export type OperatorPhase = "START" | "END" | "WHOLE";
 

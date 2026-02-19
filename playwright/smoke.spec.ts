@@ -110,7 +110,7 @@ test("export readable scenario JSON and import edited JSON", async ({ page }) =>
 
   const scenarioTextArea = page.getByTestId("scenario-json");
   const exportedText = await scenarioTextArea.inputValue();
-  expect(exportedText).toContain('"version": 2');
+  expect(exportedText).toContain('"version": 3');
   expect(exportedText).toContain('"template"');
   expect(exportedText).toContain('"runs"');
   expect(exportedText).toContain('"settings"');

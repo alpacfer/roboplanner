@@ -34,6 +34,10 @@ function isValidHexColor(value: unknown): boolean {
   return typeof value === "string" && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
+function isInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value);
+}
+
 function isValidStepV2(value: unknown): value is Omit<Step, "groupId"> {
   if (!isObject(value)) {
     return false;
@@ -43,7 +47,8 @@ function isValidStepV2(value: unknown): value is Omit<Step, "groupId"> {
   return (
     typeof value.id === "string" &&
     typeof value.name === "string" &&
-    typeof value.durationMin === "number" &&
+    isInteger(value.durationMin) &&
+    value.durationMin > 0 &&
     isValidOperatorInvolvement(value.operatorInvolvement) &&
     colorValid
   );
@@ -73,7 +78,8 @@ function isValidRun(value: unknown): value is Run {
   return (
     typeof value.id === "string" &&
     typeof value.label === "string" &&
-    typeof value.startMin === "number" &&
+    isInteger(value.startMin) &&
+    value.startMin >= 0 &&
     typeof value.templateId === "string"
   );
 }
@@ -83,8 +89,9 @@ function isValidPlanSettings(value: unknown): value is PlanSettings {
     return false;
   }
   return (
-    typeof value.operatorCapacity === "number" &&
-    (value.queuePolicy === "FIFO" || value.queuePolicy === "SPT" || value.queuePolicy === "PRIORITY")
+    isInteger(value.operatorCapacity) &&
+    value.operatorCapacity > 0 &&
+    value.queuePolicy === "FIFO"
   );
 }
 
@@ -109,7 +116,8 @@ function isLegacyStep(value: unknown): value is Omit<Step, "operatorInvolvement"
   return (
     typeof value.id === "string" &&
     typeof value.name === "string" &&
-    typeof value.durationMin === "number" &&
+    isInteger(value.durationMin) &&
+    value.durationMin > 0 &&
     typeof value.requiresOperator === "boolean"
   );
 }

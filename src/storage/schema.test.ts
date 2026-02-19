@@ -77,4 +77,52 @@ describe("scenario schema", () => {
       }),
     ).toThrow("Scenario payload has invalid stepGroups data.");
   });
+
+  it("rejects payload with non-integer step duration", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10.5, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid template data.");
+  });
+
+  it("rejects payload with non-integer run start", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0.25, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid runs data.");
+  });
+
+  it("rejects payload with non-integer operator capacity", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1.5, queuePolicy: "FIFO" },
+      }),
+    ).toThrow("Scenario payload has invalid settings data.");
+  });
+
+  it("rejects payload with queuePolicy values other than FIFO", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: 3,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "SPT" },
+      }),
+    ).toThrow("Scenario payload has invalid settings data.");
+  });
 });
