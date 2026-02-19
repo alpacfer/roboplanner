@@ -33,49 +33,16 @@ export function validateStep(step: Step): string[] {
 }
 
 export function validateTemplateSteps(steps: Step[]): string[][] {
-  const nameCounts = new Map<string, number>();
-
-  for (const step of steps) {
-    const normalizedName = step.name.trim().toLowerCase();
-    if (!normalizedName) {
-      continue;
-    }
-    nameCounts.set(normalizedName, (nameCounts.get(normalizedName) ?? 0) + 1);
-  }
-
-  return steps.map((step) => {
-    const errors = validateStep(step);
-    const normalizedName = step.name.trim().toLowerCase();
-
-    if (normalizedName && (nameCounts.get(normalizedName) ?? 0) > 1) {
-      errors.push("Step name must be unique.");
-    }
-
-    return errors;
-  });
+  return steps.map((step) => validateStep(step));
 }
 
 export function validateStepGroups(groups: StepGroup[]): string[][] {
-  const nameCounts = new Map<string, number>();
-
-  for (const group of groups) {
-    const normalizedName = group.name.trim().toLowerCase();
-    if (!normalizedName) {
-      continue;
-    }
-    nameCounts.set(normalizedName, (nameCounts.get(normalizedName) ?? 0) + 1);
-  }
-
   return groups.map((group) => {
     const errors: string[] = [];
     const normalizedName = group.name.trim().toLowerCase();
 
     if (!normalizedName) {
       errors.push("Group name is required.");
-    }
-
-    if (normalizedName && (nameCounts.get(normalizedName) ?? 0) > 1) {
-      errors.push("Group name must be unique.");
     }
 
     return errors;

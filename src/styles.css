@@ -390,11 +390,8 @@ body {
   margin-bottom: 0.6rem;
 }
 
-.portability-panel textarea {
-  box-sizing: border-box;
-  font-family: Consolas, "Courier New", monospace;
-  margin-top: 0.4rem;
-  width: 100%;
+.portability-panel input[type="file"] {
+  margin-bottom: 0.6rem;
 }
 
 .lane-label {

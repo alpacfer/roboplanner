@@ -78,7 +78,7 @@ describe("validation", () => {
     ).not.toHaveLength(0);
   });
 
-  it("rejects duplicate step names in template", () => {
+  it("allows duplicate step names in template", () => {
     const errors = validateTemplateSteps([
       {
         id: "s1",
@@ -96,17 +96,17 @@ describe("validation", () => {
       },
     ]);
 
-    expect(errors[0]).toContain("Step name must be unique.");
-    expect(errors[1]).toContain("Step name must be unique.");
+    expect(errors[0]).toHaveLength(0);
+    expect(errors[1]).toHaveLength(0);
   });
 
-  it("rejects duplicate step group names", () => {
+  it("allows duplicate step group names", () => {
     const errors = validateStepGroups([
       { id: "g1", name: "Main", color: "#4e79a7" },
       { id: "g2", name: " main ", color: "#f28e2b" },
     ]);
 
-    expect(errors[0]).toContain("Group name must be unique.");
-    expect(errors[1]).toContain("Group name must be unique.");
+    expect(errors[0]).toHaveLength(0);
+    expect(errors[1]).toHaveLength(0);
   });
 });
