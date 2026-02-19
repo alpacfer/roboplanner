@@ -133,44 +133,49 @@ function ImportExportPanel({ template, stepGroups, runs, settings, onImport }: I
   return (
     <section className="portability-panel">
       <h2>Import / Export Scenario</h2>
-      <div className="portability-actions">
-        <button
-          aria-label="Export scenario"
-          className="icon-button"
-          title="Export scenario"
-          type="button"
-          onClick={handleExport}
-        >
-          <span aria-hidden="true" className="icon-glyph">
-            ⤴
-          </span>
-        </button>
-        <button
-          aria-label="Import scenario"
-          className="icon-button"
-          title="Import scenario"
-          type="button"
-          onClick={handleImportSelect}
-        >
-          <span aria-hidden="true" className="icon-glyph">
-            ⤵
-          </span>
-        </button>
+      <div className="portability-layout">
+        <div className="portability-actions">
+          <button
+            aria-label="Export scenario"
+            className="portability-action-button"
+            title="Export scenario"
+            type="button"
+            onClick={handleExport}
+          >
+            <span aria-hidden="true" className="icon-glyph">
+              ⤴
+            </span>
+            <span>Export</span>
+          </button>
+          <button
+            aria-label="Import scenario"
+            className="portability-action-button"
+            title="Import scenario"
+            type="button"
+            onClick={handleImportSelect}
+          >
+            <span aria-hidden="true" className="icon-glyph">
+              ⤵
+            </span>
+            <span>Import</span>
+          </button>
+        </div>
+        <div className="portability-info">
+          <p>Import supports scenario JSON and TestStand HTML exports.</p>
+          <p className="portability-status" data-testid="scenario-status">
+            {status}
+          </p>
+        </div>
       </div>
-      <label className="file-input-label">
-        Scenario import file
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json,.json,text/html,.html,.htm,text/plain"
-          aria-label="Scenario import file"
-          data-testid="scenario-file-input"
-          onChange={handleImportFile}
-        />
-      </label>
-      <p className="portability-status" data-testid="scenario-status">
-        {status}
-      </p>
+      <input
+        ref={fileInputRef}
+        className="portability-file-input"
+        type="file"
+        accept="application/json,.json,text/html,.html,.htm,text/plain"
+        aria-label="Scenario import file"
+        data-testid="scenario-file-input"
+        onChange={handleImportFile}
+      />
     </section>
   );
 }

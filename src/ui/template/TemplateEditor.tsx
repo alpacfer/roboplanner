@@ -141,7 +141,7 @@ function StepItem({
         </button>
       </div>
 
-      <div className="template-step-lower">
+      <div className={`template-step-lower ${isGrouped ? "is-grouped" : ""}`}>
         {!isGrouped ? (
           <div className="step-color-cell">
             <label className="field-row color-field">
@@ -211,6 +211,7 @@ function StepItem({
 function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [openGroupColorMenuId, setOpenGroupColorMenuId] = useState<string | null>(null);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const stepErrors = validateTemplateSteps(steps);
   const groupErrors = validateStepGroups(stepGroups);
 
@@ -312,12 +313,21 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
     });
     setOpenGroupColorMenuId((current) => (current === groupId ? null : current));
   };
+  const deleteAllGroups = () => {
+    const groupIdSet = new Set(stepGroups.map((group) => group.id));
+    const nextSteps = steps.filter((step) => !(step.groupId && groupIdSet.has(step.groupId)));
+    emitChange(nextSteps, []);
+    setCollapsedGroups({});
+    setOpenGroupColorMenuId(null);
+    setIsDeleteAllDialogOpen(false);
+  };
   const areAllCollapsed = orderedBucketKeys.every((key) => collapsedGroups[key]);
   const toggleCollapseAll = () => {
     if (areAllCollapsed) {
       setCollapsedGroups({});
       return;
     }
+    setOpenGroupColorMenuId(null);
     setCollapsedGroups(Object.fromEntries(orderedBucketKeys.map((key) => [key, true])));
   };
 
@@ -340,17 +350,29 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
               {areAllCollapsed ? "▾" : "▸"}
             </span>
           </button>
-        <button
-          aria-label="Add sequence"
-          className="template-add-sequence-button icon-button"
-          title="Add sequence"
-          type="button"
-          onClick={addGroup}
-        >
-          <span aria-hidden="true" className="icon-glyph">
-            +
-          </span>
-        </button>
+          <button
+            aria-label="Delete all sequences"
+            className="icon-button danger-ghost-button"
+            disabled={stepGroups.length === 0}
+            title="Delete all sequences"
+            type="button"
+            onClick={() => setIsDeleteAllDialogOpen(true)}
+          >
+            <span aria-hidden="true" className="icon-glyph">
+              ×
+            </span>
+          </button>
+          <button
+            aria-label="Add sequence"
+            className="template-add-sequence-button icon-button"
+            title="Add sequence"
+            type="button"
+            onClick={addGroup}
+          >
+            <span aria-hidden="true" className="icon-glyph">
+              +
+            </span>
+          </button>
         </div>
       </div>
       <div className="template-groups-grid">
@@ -381,7 +403,13 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                   className="group-toggle-button icon-button"
                   title={`${collapsed ? "Expand" : "Collapse"} sequence ${group.name}`}
                   type="button"
-                  onClick={() => setCollapsedGroups((current) => ({ ...current, [key]: !collapsed }))}
+                  onClick={() => {
+                    const nextCollapsed = !collapsed;
+                    setCollapsedGroups((current) => ({ ...current, [key]: nextCollapsed }));
+                    if (nextCollapsed) {
+                      setOpenGroupColorMenuId((current) => (current === group.id ? null : current));
+                    }
+                  }}
                 >
                   <span aria-hidden="true" className="icon-glyph">
                     {collapsed ? "▸" : "▾"}
@@ -558,6 +586,36 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
           );
         })()}
       </div>
+      {isDeleteAllDialogOpen ? (
+        <div className="confirm-modal-overlay" data-testid="delete-all-sequences-modal-overlay">
+          <div
+            aria-label="Delete all sequences confirmation"
+            aria-modal="true"
+            className="confirm-modal"
+            role="dialog"
+          >
+            <h3>Delete all sequences?</h3>
+            <p>All sequence cards will be removed, and grouped steps will become unsequenced.</p>
+            <div className="confirm-modal-actions">
+              <button
+                aria-label="Cancel delete all sequences"
+                type="button"
+                onClick={() => setIsDeleteAllDialogOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                aria-label="Confirm delete all sequences"
+                className="danger-ghost-button"
+                type="button"
+                onClick={deleteAllGroups}
+              >
+                Delete all
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

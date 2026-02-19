@@ -130,6 +130,15 @@ function App() {
 
       <div className="workspace-grid">
         <section className="workspace-main" data-testid="workspace-main">
+          <div className="panel-card utility-card utility-portability-card" data-testid="utility-portability-card">
+            <ImportExportPanel
+              settings={settings}
+              template={template}
+              stepGroups={stepGroups}
+              runs={runs}
+              onImport={applyImportedScenario}
+            />
+          </div>
           <div className="panel-card">
             <TemplateEditor
               steps={template}
@@ -140,12 +149,12 @@ function App() {
               }}
             />
           </div>
-          <div className="panel-card">
-            <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
-          </div>
         </section>
 
         <aside className="workspace-side" data-testid="workspace-side">
+          <div className="panel-card utility-card">
+            <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
+          </div>
           <section className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
             <h2>Simulation Settings</h2>
             <div className="settings-fields">
@@ -183,15 +192,6 @@ function App() {
 
           <div className="panel-card utility-card utility-metrics-card" data-testid="utility-metrics-card">
             <MetricsPanel metrics={metrics} />
-          </div>
-          <div className="panel-card utility-card utility-portability-card" data-testid="utility-portability-card">
-            <ImportExportPanel
-              settings={settings}
-              template={template}
-              stepGroups={stepGroups}
-              runs={runs}
-              onImport={applyImportedScenario}
-            />
           </div>
         </aside>
       </div>

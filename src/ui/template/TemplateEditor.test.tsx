@@ -122,6 +122,37 @@ describe("TemplateEditor", () => {
     expect(screen.getByTestId("steps-state").textContent).toContain('"groupId":null');
   });
 
+  it("delete all sequences opens confirmation and can be canceled", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Delete all sequences" }));
+    expect(screen.getByRole("dialog", { name: "Delete all sequences confirmation" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Cancel delete all sequences" }));
+    expect(screen.queryByRole("dialog", { name: "Delete all sequences confirmation" })).toBeNull();
+    expect(readGroups()).toHaveLength(1);
+  });
+
+  it("delete all sequences clears groups and removes grouped steps after confirmation", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
+    expect(readGroups()).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Delete all sequences" }));
+    await user.click(screen.getByRole("button", { name: "Confirm delete all sequences" }));
+
+    expect(readGroups()).toHaveLength(0);
+    expect(readSteps()).toHaveLength(1);
+    expect(screen.getByTestId("steps-state").textContent).toContain('"id":"step-1"');
+    expect(screen.getByTestId("steps-state").textContent).not.toContain('"id":"step-2"');
+    expect(screen.queryByRole("dialog", { name: "Delete all sequences confirmation" })).toBeNull();
+  });
+
   it("grouped step hides step color picker and keeps step color unchanged", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
@@ -161,6 +192,16 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByRole("button", { name: "Sequence preset 1 #f28e2b" }));
 
     expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#f28e2b"');
+  });
+
+  it("keeps sequence color picker available when sequence is collapsed", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Collapse sequence Sequence 1" }));
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu 1" }));
+    expect(screen.getByLabelText("Sequence color 1")).toBeTruthy();
   });
 
   it("shows inline and group summary validation", async () => {

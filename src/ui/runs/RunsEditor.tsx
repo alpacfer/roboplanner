@@ -57,7 +57,6 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
               <th>Label</th>
               <th>Start (min)</th>
               <th>Actions</th>
-              <th>Validation</th>
             </tr>
           </thead>
           <tbody>
@@ -93,29 +92,27 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                     />
                   </td>
                   <td>
-                    <button
-                      aria-label={`Delete run ${index + 1}`}
-                      className="danger-ghost-button icon-button"
-                      disabled={runs.length <= 1}
-                      title={`Delete run ${run.label}`}
-                      type="button"
-                      onClick={() => deleteRun(index)}
-                    >
-                      <span aria-hidden="true" className="icon-glyph">
-                        ×
-                      </span>
-                    </button>
-                  </td>
-                  <td>
+                    <div className="run-actions-cell">
+                      <button
+                        aria-label={`Delete run ${index + 1}`}
+                        className="danger-ghost-button icon-button"
+                        disabled={runs.length <= 1}
+                        title={`Delete run ${run.label}`}
+                        type="button"
+                        onClick={() => deleteRun(index)}
+                      >
+                        <span aria-hidden="true" className="icon-glyph">
+                          ×
+                        </span>
+                      </button>
                     {errors.length > 0 ? (
-                      <ul className="inline-errors">
+                      <ul className="inline-errors run-inline-errors">
                         {errors.map((error) => (
                           <li key={error}>{error}</li>
                         ))}
                       </ul>
-                    ) : (
-                      <span className="valid-step">OK</span>
-                    )}
+                    ) : null}
+                    </div>
                   </td>
                 </tr>
               );

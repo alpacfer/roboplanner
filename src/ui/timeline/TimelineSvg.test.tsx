@@ -191,6 +191,16 @@ describe("TimelineSvg", () => {
     expect(labels.every((label) => typeof label === "string" && /^\d+ min$/.test(label))).toBe(true);
   });
 
+  it("adapts axis tick density with zoom level", () => {
+    const { rerender } = render(<TimelineSvg pxPerMin={1} runs={runs} segments={segments} viewStartMin={0} viewEndMin={600} />);
+    const lowZoomTickCount = document.querySelectorAll(".axis-label").length;
+
+    rerender(<TimelineSvg pxPerMin={10} runs={runs} segments={segments} viewStartMin={0} viewEndMin={600} />);
+    const highZoomTickCount = document.querySelectorAll(".axis-label").length;
+
+    expect(highZoomTickCount).toBeGreaterThan(lowZoomTickCount);
+  });
+
   it("uses step color and overlays operator pattern", () => {
     const coloredSegments: Segment[] = [
       {

@@ -103,10 +103,8 @@ function canRenderLabel(name: string, widthPx: number): boolean {
 }
 
 function axisTickStep(viewStartMin: number, viewEndMin: number, pxPerMin: number): number {
-  const span = Math.max(1, viewEndMin - viewStartMin);
-  const roughByCount = span / 8;
   const roughByPixels = MIN_AXIS_LABEL_SPACING_PX / Math.max(pxPerMin, 0.0001);
-  const rough = Math.max(1, roughByCount, roughByPixels);
+  const rough = Math.max(1, roughByPixels);
   const magnitude = 10 ** Math.floor(Math.log10(rough));
   const normalized = rough / magnitude;
   if (normalized <= 1) {
