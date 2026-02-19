@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { PlanSettings, Run, Segment, SimulationMetrics, Step } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
@@ -6,19 +6,21 @@ import MetricsPanel from "./ui/metrics/MetricsPanel";
 import ImportExportPanel from "./ui/portability/ImportExportPanel";
 import RunsEditor from "./ui/runs/RunsEditor";
 import TemplateEditor from "./ui/template/TemplateEditor";
-import TimelineSvg from "./ui/timeline/TimelineSvg";
+import TimelineSvg, { TIMELINE_LEFT_PAD, TIMELINE_RIGHT_PAD } from "./ui/timeline/TimelineSvg";
+
+const MIN_PX_PER_MIN = 0.1;
+const MAX_PX_PER_MIN = 40;
 
 function App() {
-  const VIEW_WINDOW_MIN = 80;
   const initialPlan = useMemo(() => createInitialPlans()[0], []);
   const [template, setTemplate] = useState<Step[]>(initialPlan.template);
   const [runs, setRuns] = useState(initialPlan.runs);
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
   const [showWaits, setShowWaits] = useState(true);
   const [pxPerMin, setPxPerMin] = useState(10);
-  const [viewStartMin, setViewStartMin] = useState(0);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
+  const timelineBoxRef = useRef<HTMLDivElement | null>(null);
 
   const simulate = () => {
     const result = simulateDES({
@@ -29,11 +31,6 @@ function App() {
     });
     setSegments(result.segments);
     setMetrics(result.metrics);
-    const initialVisible = showWaits
-      ? result.segments
-      : result.segments.filter((segment) => segment.kind !== "wait");
-    const minStart = initialVisible.length > 0 ? Math.min(...initialVisible.map((segment) => segment.startMin)) : 0;
-    setViewStartMin(minStart);
   };
 
   const applyImportedScenario = (payload: {
@@ -46,24 +43,34 @@ function App() {
     setSettings(payload.settings);
     setSegments([]);
     setMetrics(null);
-    setViewStartMin(0);
   };
 
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
-  const maxEndMin = visibleSegments.length > 0 ? Math.max(...visibleSegments.map((segment) => segment.endMin)) : 0;
-  const maxViewStart = Math.max(0, maxEndMin - VIEW_WINDOW_MIN);
-  const clampedViewStartMin = Math.min(Math.max(0, viewStartMin), maxViewStart);
-  const viewEndMin = clampedViewStartMin + VIEW_WINDOW_MIN;
-
-  const pan = (deltaMin: number) => {
-    setViewStartMin((current) => Math.max(0, current + deltaMin));
-  };
+  const timelineStartMin =
+    visibleSegments.length > 0 ? Math.min(...visibleSegments.map((segment) => segment.startMin)) : 0;
+  const timelineEndMin =
+    visibleSegments.length > 0 ? Math.max(...visibleSegments.map((segment) => segment.endMin)) : timelineStartMin;
 
   const zoom = (factor: number) => {
     setPxPerMin((current) => {
       const next = current * factor;
-      return Math.max(2, Math.min(40, next));
+      return Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, next));
     });
+  };
+
+  const fitToWindow = () => {
+    if (!timelineBoxRef.current) {
+      return;
+    }
+
+    const spanMin = Math.max(1, timelineEndMin - timelineStartMin);
+    const availablePx = Math.max(
+      40,
+      timelineBoxRef.current.clientWidth - TIMELINE_LEFT_PAD - TIMELINE_RIGHT_PAD,
+    );
+    const fitted = availablePx / spanMin;
+    setPxPerMin(Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, fitted)));
+    timelineBoxRef.current.scrollTo({ left: 0, top: 0, behavior: "auto" });
   };
 
   return (
@@ -110,17 +117,17 @@ function App() {
         <input
           id="zoom-px-per-min"
           aria-label="Zoom (px/min)"
-          max={40}
-          min={2}
-          step={1}
+          max={MAX_PX_PER_MIN}
+          min={MIN_PX_PER_MIN}
+          step={0.1}
           type="number"
-          value={Math.round(pxPerMin)}
+          value={pxPerMin.toFixed(1)}
           onChange={(event) => {
-            const value = Number.parseInt(event.target.value, 10);
+            const value = Number.parseFloat(event.target.value);
             if (Number.isNaN(value)) {
               return;
             }
-            setPxPerMin(Math.max(2, Math.min(40, value)));
+            setPxPerMin(Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, value)));
           }}
         />
         <button type="button" onClick={() => zoom(1.25)}>
@@ -129,21 +136,20 @@ function App() {
         <button type="button" onClick={() => zoom(0.8)}>
           Zoom out
         </button>
-        <button type="button" onClick={() => pan(-10)}>
-          Pan left
-        </button>
-        <button type="button" onClick={() => pan(10)}>
-          Pan right
+        <button type="button" onClick={fitToWindow}>
+          Fit to window
         </button>
       </section>
       <h2>Timeline</h2>
-      <TimelineSvg
-        pxPerMin={pxPerMin}
-        runs={runs}
-        segments={visibleSegments}
-        viewStartMin={clampedViewStartMin}
-        viewEndMin={viewEndMin}
-      />
+      <div ref={timelineBoxRef} className="timeline-box" data-testid="timeline-box">
+        <TimelineSvg
+          pxPerMin={pxPerMin}
+          runs={runs}
+          segments={visibleSegments}
+          viewStartMin={timelineStartMin}
+          viewEndMin={timelineEndMin}
+        />
+      </div>
       <MetricsPanel metrics={metrics} />
       <ImportExportPanel
         settings={settings}

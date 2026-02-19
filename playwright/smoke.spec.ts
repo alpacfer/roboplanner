@@ -116,6 +116,16 @@ test("export readable scenario JSON and import edited JSON", async ({ page }) =>
   await expect(page.getByLabel("Operator capacity")).toHaveValue("2");
 });
 
+test("copy JSON button copies exported payload", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-write"], {
+    origin: "http://127.0.0.1:4173",
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Export scenario" }).click();
+  await page.getByRole("button", { name: "Copy JSON" }).click();
+  await expect(page.getByTestId("scenario-status")).toContainText("Scenario JSON copied.");
+});
+
 test("zoom in makes bars wider", async ({ page }) => {
   await page.goto("/");
 
@@ -135,7 +145,7 @@ test("zoom in makes bars wider", async ({ page }) => {
   expect(widthAfter).toBeGreaterThan(widthBefore);
 });
 
-test("pan shifts bars horizontally", async ({ page }) => {
+test("timeline box scrolls horizontally when content is wider than viewport", async ({ page }) => {
   await page.goto("/");
 
   await page.getByLabel("Duration 1").fill("50");
@@ -146,10 +156,86 @@ test("pan shifts bars horizontally", async ({ page }) => {
 
   await page.getByRole("button", { name: "Simulate" }).click();
 
-  const firstRect = page.getByTestId("timeline-rect").first();
-  const xBefore = Number(await firstRect.getAttribute("x"));
-  await page.getByRole("button", { name: "Pan right" }).click();
-  const xAfter = Number(await firstRect.getAttribute("x"));
+  const timelineBox = page.getByTestId("timeline-box");
+  await page.getByLabel("Zoom (px/min)").fill("40");
 
-  expect(xAfter).toBeLessThan(xBefore);
+  const scrollMetrics = await timelineBox.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(scrollMetrics.scrollWidth).toBeGreaterThan(scrollMetrics.clientWidth);
+});
+
+test("fit to window reduces zoom so bars get narrower", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Duration 1").fill("50");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Duration 2").fill("30");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Duration 3").fill("20");
+
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  await page.getByLabel("Zoom (px/min)").fill("40");
+  const firstRect = page.getByTestId("timeline-rect").first();
+  const widthBefore = Number(await firstRect.getAttribute("width"));
+
+  await page.getByRole("button", { name: "Fit to window" }).click();
+  const widthAfter = Number(await firstRect.getAttribute("width"));
+
+  expect(widthAfter).toBeLessThan(widthBefore);
+});
+
+test("fit to window handles timelines longer than 500 minutes", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Duration 1").fill("600");
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  await page.getByLabel("Zoom (px/min)").fill("40");
+  await page.getByRole("button", { name: "Fit to window" }).click();
+
+  const timelineBox = page.getByTestId("timeline-box");
+  const metrics = await timelineBox.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 2);
+});
+
+test("hovering a timeline step shows tooltip details", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  const firstRect = page.getByTestId("timeline-rect").first();
+  await firstRect.hover();
+
+  const tooltip = page.getByTestId("timeline-tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("Prep");
+  await expect(tooltip).toContainText("Start: 0 min, End: 10 min");
+  await expect(tooltip).toContainText("Requires operator: Yes");
+});
+
+test("timeline shows auto-scaled horizontal minute axis", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Duration 1").fill("600");
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  await expect(page.getByTestId("timeline-axis")).toBeVisible();
+  await expect(page.locator(".axis-label", { hasText: /^0 min$/ })).toBeVisible();
+  await expect(page.locator(".axis-label", { hasText: /^100 min$/ })).toBeVisible();
+});
+
+test("step label is hidden when text does not fit segment width", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Name 1").fill("VeryLongStepNameThatCannotFit");
+  await page.getByLabel("Duration 1").fill("5");
+  await page.getByRole("button", { name: "Simulate" }).click();
+
+  const labelCount = await page
+    .locator('[data-testid="timeline-svg"] .segment-label', { hasText: "VeryLongStepNameThatCannotFit" })
+    .count();
+  expect(labelCount).toBe(0);
 });

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { Run, Segment } from "../../domain/types";
 import TimelineSvg from "./TimelineSvg";
@@ -22,9 +22,9 @@ describe("TimelineSvg", () => {
     const firstRect = rects[0];
     const secondRect = rects[1];
 
-    expect(Number.parseFloat(firstRect.getAttribute("x") ?? "0")).toBeCloseTo(120, 3);
+    expect(Number.parseFloat(firstRect.getAttribute("x") ?? "0")).toBeCloseTo(84, 3);
     expect(Number.parseFloat(firstRect.getAttribute("width") ?? "0")).toBeCloseTo(20, 3);
-    expect(Number.parseFloat(secondRect.getAttribute("x") ?? "0")).toBeCloseTo(140, 3);
+    expect(Number.parseFloat(secondRect.getAttribute("x") ?? "0")).toBeCloseTo(104, 3);
     expect(Number.parseFloat(secondRect.getAttribute("width") ?? "0")).toBeCloseTo(60, 3);
   });
 
@@ -69,5 +69,41 @@ describe("TimelineSvg", () => {
     expect(laneGroups[1].querySelectorAll('[data-testid="timeline-rect"]')).toHaveLength(3);
     expect(laneGroups[0].textContent).toContain("R1");
     expect(laneGroups[1].textContent).toContain("R2");
+  });
+
+  it("shows tooltip with segment details on hover", () => {
+    render(<TimelineSvg pxPerMin={10} runs={runs} segments={segments} />);
+    const firstRect = screen.getAllByTestId("timeline-rect")[0];
+
+    fireEvent.mouseEnter(firstRect, { clientX: 200, clientY: 150 });
+    const tooltip = screen.getByTestId("timeline-tooltip");
+
+    expect(tooltip.textContent).toContain("Prep");
+    expect(tooltip.textContent).toContain("Start: 0 min, End: 10 min");
+    expect(tooltip.textContent).toContain("Requires operator: Yes");
+  });
+
+  it("does not render label text when name does not fit bar width", () => {
+    const tinySegments: Segment[] = [
+      {
+        runId: "R1",
+        name: "VeryLongStepNameThatCannotFit",
+        startMin: 0,
+        endMin: 5,
+        kind: "step",
+        requiresOperator: false,
+      },
+    ];
+
+    render(<TimelineSvg pxPerMin={4} runs={runs} segments={tinySegments} />);
+    expect(screen.queryByText("VeryLongStepNameThatCannotFit")).toBeNull();
+  });
+
+  it("renders a horizontal minute axis with auto-scaled ticks", () => {
+    render(<TimelineSvg pxPerMin={1} runs={runs} segments={segments} viewStartMin={0} viewEndMin={600} />);
+    expect(screen.getByTestId("timeline-axis")).toBeTruthy();
+    expect(screen.getByText("0 min")).toBeTruthy();
+    expect(screen.getByText("100 min")).toBeTruthy();
+    expect(screen.getByText("500 min")).toBeTruthy();
   });
 });

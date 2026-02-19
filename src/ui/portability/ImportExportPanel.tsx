@@ -32,6 +32,25 @@ function ImportExportPanel({ template, runs, settings, onImport }: ImportExportP
     }
   };
 
+  const handleCopy = async () => {
+    if (!scenarioText.trim()) {
+      setStatus("Nothing to copy.");
+      return;
+    }
+
+    if (!navigator.clipboard) {
+      setStatus("Clipboard unavailable.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(scenarioText);
+      setStatus("Scenario JSON copied.");
+    } catch {
+      setStatus("Clipboard unavailable.");
+    }
+  };
+
   return (
     <section className="portability-panel">
       <h2>Import / Export Scenario</h2>
@@ -41,6 +60,9 @@ function ImportExportPanel({ template, runs, settings, onImport }: ImportExportP
         </button>
         <button type="button" onClick={handleImport}>
           Import scenario
+        </button>
+        <button type="button" onClick={handleCopy}>
+          Copy JSON
         </button>
       </div>
       <label htmlFor="scenario-json">Scenario JSON</label>

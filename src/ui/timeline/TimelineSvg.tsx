@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Run, Segment } from "../../domain/types";
 import { segmentWidth, segmentX } from "./scale";
 import { filterSegmentsByViewport } from "./viewport";
@@ -12,71 +13,176 @@ interface TimelineSvgProps {
 
 const LANE_HEIGHT = 44;
 const LANE_GAP = 10;
-const LEFT_PAD = 120;
-const RIGHT_PAD = 24;
+export const TIMELINE_LEFT_PAD = 84;
+export const TIMELINE_RIGHT_PAD = 24;
 const TOP_PAD = 18;
+const AXIS_HEIGHT = 26;
 const BOTTOM_PAD = 18;
 const BAR_HEIGHT = 28;
-const LABEL_MIN_WIDTH = 56;
+const LABEL_HORIZONTAL_PADDING = 10;
+const APPROX_CHAR_WIDTH = 5;
+
+interface TooltipState {
+  x: number;
+  y: number;
+  segment: Segment;
+}
+
+function canRenderLabel(name: string, widthPx: number): boolean {
+  const estimatedTextWidth = name.length * APPROX_CHAR_WIDTH + LABEL_HORIZONTAL_PADDING;
+  return widthPx >= estimatedTextWidth;
+}
+
+function axisTickStep(viewStartMin: number, viewEndMin: number): number {
+  const span = Math.max(1, viewEndMin - viewStartMin);
+  const rough = span / 8;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const normalized = rough / magnitude;
+  if (normalized <= 1) {
+    return 1 * magnitude;
+  }
+  if (normalized <= 2) {
+    return 2 * magnitude;
+  }
+  if (normalized <= 5) {
+    return 5 * magnitude;
+  }
+  return 10 * magnitude;
+}
+
+function buildAxisTicks(viewStartMin: number, viewEndMin: number): number[] {
+  const step = axisTickStep(viewStartMin, viewEndMin);
+  const first = Math.ceil(viewStartMin / step) * step;
+  const ticks: number[] = [];
+  for (let tick = first; tick <= viewEndMin; tick += step) {
+    ticks.push(tick);
+  }
+  if (ticks.length === 0 || ticks[0] !== viewStartMin) {
+    ticks.unshift(viewStartMin);
+  }
+  return ticks;
+}
 
 function TimelineSvg({ runs, segments, pxPerMin, viewStartMin = 0, viewEndMin }: TimelineSvgProps) {
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const effectiveViewEndMin =
     viewEndMin ?? (segments.length > 0 ? Math.max(...segments.map((segment) => segment.endMin)) : viewStartMin);
-  const width = LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + RIGHT_PAD;
-  const height = TOP_PAD + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
+  const width = TIMELINE_LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + TIMELINE_RIGHT_PAD;
+  const height = TOP_PAD + AXIS_HEIGHT + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
   const visibleSegments = filterSegmentsByViewport(segments, viewStartMin, effectiveViewEndMin);
+  const axisTicks = buildAxisTicks(viewStartMin, effectiveViewEndMin);
 
   return (
-    <svg
-      aria-label="Timeline"
-      className="timeline-svg"
-      data-testid="timeline-svg"
-      height={height}
-      role="img"
-      width={Math.max(width, 400)}
-    >
-      {runs.map((run, laneIndex) => {
-        const laneY = TOP_PAD + laneIndex * (LANE_HEIGHT + LANE_GAP);
-        const runSegments = visibleSegments.filter((segment) => segment.runId === run.id);
+    <div className="timeline-wrap">
+      <svg
+        aria-label="Timeline"
+        className="timeline-svg"
+        data-testid="timeline-svg"
+        height={height}
+        role="img"
+        width={Math.max(width, 400)}
+      >
+        <g data-testid="timeline-axis">
+          <line
+            className="axis-line"
+            x1={TIMELINE_LEFT_PAD}
+            x2={Math.max(width, 400) - TIMELINE_RIGHT_PAD}
+            y1={TOP_PAD + AXIS_HEIGHT}
+            y2={TOP_PAD + AXIS_HEIGHT}
+          />
+          {axisTicks.map((tickMin) => {
+            const x = segmentX(tickMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
+            return (
+              <g key={`axis-tick-${tickMin}`}>
+                <line
+                  className="axis-tick"
+                  x1={x}
+                  x2={x}
+                  y1={TOP_PAD + AXIS_HEIGHT - 5}
+                  y2={TOP_PAD + AXIS_HEIGHT + 5}
+                />
+                <text className="axis-label" x={x + 2} y={TOP_PAD + AXIS_HEIGHT - 8}>
+                  {Math.round(tickMin)} min
+                </text>
+              </g>
+            );
+          })}
+        </g>
+        {runs.map((run, laneIndex) => {
+          const laneY = TOP_PAD + AXIS_HEIGHT + laneIndex * (LANE_HEIGHT + LANE_GAP);
+          const runSegments = visibleSegments.filter((segment) => segment.runId === run.id);
 
-        return (
-          <g data-testid="timeline-lane" key={run.id} transform={`translate(0, ${laneY})`}>
-            <text className="lane-label" x={8} y={BAR_HEIGHT / 2 + 4}>
-              {run.label}
-            </text>
-            {runSegments.map((segment, segmentIndex) => {
-              const x = segmentX(segment.startMin, viewStartMin, pxPerMin, LEFT_PAD);
-              const widthPx = segmentWidth(segment.startMin, segment.endMin, pxPerMin);
-              const fill =
-                segment.kind === "wait"
-                  ? "#9aa5b1"
-                  : segment.requiresOperator
-                    ? "#f57c00"
-                    : "#4f7cff";
+          return (
+            <g data-testid="timeline-lane" key={run.id} transform={`translate(0, ${laneY})`}>
+              <text className="lane-label" x={8} y={BAR_HEIGHT / 2 + 4}>
+                {run.label}
+              </text>
+              {runSegments.map((segment, segmentIndex) => {
+                const x = segmentX(segment.startMin, viewStartMin, pxPerMin, TIMELINE_LEFT_PAD);
+                const widthPx = segmentWidth(segment.startMin, segment.endMin, pxPerMin);
+                const fill =
+                  segment.kind === "wait"
+                    ? "#9aa5b1"
+                    : segment.requiresOperator
+                      ? "#f57c00"
+                      : "#4f7cff";
 
-              return (
-                <g key={`${segment.runId}-${segmentIndex}`}>
-                  <rect
-                    data-testid="timeline-rect"
-                    fill={fill}
-                    height={BAR_HEIGHT}
-                    rx={4}
-                    width={widthPx}
-                    x={x}
-                    y={0}
-                  />
-                  {widthPx >= LABEL_MIN_WIDTH ? (
-                    <text className="segment-label" x={x + 6} y={BAR_HEIGHT / 2 + 4}>
-                      {segment.name}
-                    </text>
-                  ) : null}
-                </g>
-              );
-            })}
-          </g>
-        );
-      })}
-    </svg>
+                return (
+                  <g key={`${segment.runId}-${segmentIndex}`}>
+                    <rect
+                      data-testid="timeline-rect"
+                      fill={fill}
+                      height={BAR_HEIGHT}
+                      rx={4}
+                      width={widthPx}
+                      x={x}
+                      y={0}
+                      onMouseEnter={(event) => {
+                        setTooltip({
+                          x: event.clientX,
+                          y: event.clientY,
+                          segment,
+                        });
+                      }}
+                      onMouseMove={(event) => {
+                        setTooltip((current) =>
+                          current
+                            ? {
+                                ...current,
+                                x: event.clientX,
+                                y: event.clientY,
+                              }
+                            : current,
+                        );
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                    />
+                    {canRenderLabel(segment.name, widthPx) ? (
+                      <text className="segment-label" x={x + 6} y={BAR_HEIGHT / 2 + 4}>
+                        {segment.name}
+                      </text>
+                    ) : null}
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+      </svg>
+      {tooltip ? (
+        <div
+          className="timeline-tooltip"
+          data-testid="timeline-tooltip"
+          style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}
+        >
+          <div>{tooltip.segment.name}</div>
+          <div>
+            Start: {tooltip.segment.startMin} min, End: {tooltip.segment.endMin} min
+          </div>
+          <div>Requires operator: {tooltip.segment.requiresOperator ? "Yes" : "No"}</div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
