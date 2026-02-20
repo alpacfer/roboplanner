@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { STEP_COLOR_PRESETS } from "./domain/colors";
 import App from "./App";
 
 async function readBlobText(blob: Blob): Promise<string> {
@@ -116,7 +117,7 @@ describe("App step sequences", () => {
     expect(screen.getByTestId("template-state").textContent).toContain('"groupId":"g1"');
   });
 
-  it("uses sequence color override on timeline after simulate", async () => {
+  it("assigns default sequence colors in order after import", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -132,8 +133,19 @@ describe("App step sequences", () => {
             groupId: "g1",
             color: "#ff0000",
           },
+          {
+            id: "step-2",
+            name: "Measure",
+            durationMin: 5,
+            operatorInvolvement: "NONE",
+            groupId: "g2",
+            color: "#00ff00",
+          },
         ],
-        stepGroups: [{ id: "g1", name: "Main", color: "#00ff00" }],
+        stepGroups: [
+          { id: "g1", name: "Main", color: "#00ff00" },
+          { id: "g2", name: "Second", color: "#ff00ff" },
+        ],
         runs: [{ id: "run-1", label: "R1", startMin: 0, templateId: "plan-default" }],
         settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
       },
@@ -147,10 +159,10 @@ describe("App step sequences", () => {
     );
     await user.click(screen.getByRole("button", { name: "Simulate" }));
 
-    const stepRect = screen
-      .getAllByTestId("timeline-rect")
-      .find((node) => node.getAttribute("data-segment-kind") === "step");
-    expect(stepRect?.getAttribute("fill")).toBe("#00ff00");
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu 1" }));
+    expect((screen.getByLabelText("Sequence color 1") as HTMLInputElement).value).toBe(STEP_COLOR_PRESETS[0]);
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu 2" }));
+    expect((screen.getByLabelText("Sequence color 2") as HTMLInputElement).value).toBe(STEP_COLOR_PRESETS[1]);
   });
 
   it("imports TestStand HTML with grouped sequences and default step settings", async () => {

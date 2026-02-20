@@ -319,12 +319,13 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
   };
 
   const addGroup = () => {
+    const nextGroupColor = STEP_COLOR_PRESETS[stepGroups.length % STEP_COLOR_PRESETS.length] ?? DEFAULT_STEP_COLOR;
     emitChange(steps, [
       ...stepGroups,
       {
         id: nextStepGroupId(stepGroups),
         name: `Sequence ${stepGroups.length + 1}`,
-        color: DEFAULT_STEP_COLOR,
+        color: nextGroupColor,
       },
     ]);
   };

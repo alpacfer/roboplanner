@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { normalizeStepColor } from "./domain/colors";
+import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
 import type { PlanSettings, Run, Segment, SimulationMetrics, Step, StepGroup } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
@@ -12,6 +12,13 @@ import TimelineSvg, { TIMELINE_LEFT_PAD, TIMELINE_RIGHT_PAD } from "./ui/timelin
 
 const MIN_PX_PER_MIN = 0.1;
 const MAX_PX_PER_MIN = 40;
+
+function assignDefaultSequenceColorsInOrder(stepGroups: StepGroup[]): StepGroup[] {
+  return stepGroups.map((group, index) => ({
+    ...group,
+    color: STEP_COLOR_PRESETS[index % STEP_COLOR_PRESETS.length] ?? DEFAULT_STEP_COLOR,
+  }));
+}
 
 function App() {
   const initialPlan = useMemo(() => createInitialPlans()[0], []);
@@ -59,7 +66,7 @@ function App() {
         color: normalizeStepColor(step.color),
       })),
     );
-    setStepGroups(payload.stepGroups);
+    setStepGroups(assignDefaultSequenceColorsInOrder(payload.stepGroups));
     setRuns(payload.runs);
     setSettings(payload.settings);
     setSegments([]);

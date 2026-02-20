@@ -58,6 +58,18 @@ describe("TemplateEditor", () => {
     expect(screen.getAllByTestId("template-group-card")).toHaveLength(1);
   });
 
+  it("adding sequences assigns default colors in order", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+
+    const groups = readGroups();
+    expect(groups[0]?.color).toBe("#4e79a7");
+    expect(groups[1]?.color).toBe("#f28e2b");
+  });
+
   it("adding a step inside a sequence appends it to that sequence", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
