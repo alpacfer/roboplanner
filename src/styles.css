@@ -120,48 +120,6 @@ p {
   margin: 0;
 }
 
-button {
-  appearance: none;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.86rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 0.55rem 0.9rem;
-  transition:
-    background-color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease,
-    transform var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease;
-}
-
-button:hover {
-  background: color-mix(in srgb, var(--surface-2) 92%, black);
-  border-color: color-mix(in srgb, var(--border) 86%, black);
-  transform: translateY(-1px);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-  transform: none;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 68%, white);
-  outline-offset: 2px;
-}
-
 .icon-button {
   align-items: center;
   display: inline-flex;
@@ -173,40 +131,6 @@ select:focus-visible {
 .icon-glyph {
   font-size: 0.98rem;
   line-height: 1;
-}
-
-input,
-select {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.9rem;
-  line-height: 1.2;
-  padding: 0.45rem 0.55rem;
-  transition:
-    border-color var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease,
-    background-color var(--motion-fast) ease;
-}
-
-input:hover,
-select:hover {
-  border-color: var(--border-strong);
-}
-
-input[type="color"] {
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  min-height: 34px;
-  padding: 2px;
-}
-
-input[type="checkbox"] {
-  accent-color: var(--accent);
-  block-size: 16px;
-  inline-size: 16px;
 }
 
 .app-shell {
@@ -227,21 +151,10 @@ input[type="checkbox"] {
 }
 
 .app-hero {
-  align-items: end;
+  align-items: start;
   display: flex;
   justify-content: space-between;
   overflow: hidden;
-}
-
-.app-hero::after {
-  background: radial-gradient(circle at center, rgba(22, 103, 216, 0.16), transparent 68%);
-  content: "";
-  height: 150px;
-  pointer-events: none;
-  position: absolute;
-  right: -30px;
-  top: -62px;
-  width: 150px;
 }
 
 .app-hero-content {
@@ -314,16 +227,8 @@ input[type="checkbox"] {
 }
 
 .simulate-button {
-  background: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 78%, black);
-  color: #ffffff;
   justify-self: start;
   min-width: 132px;
-}
-
-.simulate-button:hover {
-  background: color-mix(in srgb, var(--accent) 90%, black);
-  border-color: color-mix(in srgb, var(--accent) 62%, black);
 }
 
 .checkbox-label {
@@ -430,19 +335,6 @@ input[type="checkbox"] {
   flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-3);
-}
-
-.group-delete-button,
-.danger-ghost-button {
-  background: var(--danger-soft);
-  border-color: color-mix(in srgb, var(--danger) 28%, white);
-  color: var(--danger);
-}
-
-.danger-ghost-button:hover {
-  background: color-mix(in srgb, var(--danger-soft) 90%, black);
-  border-color: color-mix(in srgb, var(--danger) 36%, black);
-  color: var(--danger);
 }
 
 .group-header-actions {
@@ -665,11 +557,6 @@ input[type="checkbox"] {
   padding: 0.28rem 0.5rem;
 }
 
-.row-actions button:hover,
-.group-header-actions button:hover {
-  background: color-mix(in srgb, var(--surface-2) 90%, black);
-}
-
 .step-header-actions {
   align-items: center;
   display: inline-flex;
@@ -716,9 +603,7 @@ input[type="checkbox"] {
   transform: scale(0.98);
   transition:
     opacity var(--motion-fast) ease,
-    transform var(--motion-fast) ease,
-    background-color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease;
+    transform var(--motion-fast) ease;
 }
 
 .insertion-rail:hover button,
@@ -726,21 +611,6 @@ input[type="checkbox"] {
   opacity: 1;
   pointer-events: auto;
   transform: scale(1);
-}
-
-.insertion-rail-top-level button {
-  background: color-mix(in srgb, var(--accent-soft) 78%, white);
-  border-color: color-mix(in srgb, var(--accent) 20%, white);
-  color: color-mix(in srgb, var(--accent) 56%, var(--text));
-}
-
-.insertion-rail-top-level button:hover {
-  background: color-mix(in srgb, var(--accent-soft) 90%, black);
-  border-color: color-mix(in srgb, var(--accent) 35%, black);
-}
-
-.insertion-rail-group button {
-  background: color-mix(in srgb, var(--surface-2) 92%, white);
 }
 
 .template-portability-footer {
@@ -754,17 +624,9 @@ input[type="checkbox"] {
 
 .portability-action-button {
   align-items: center;
-  background: color-mix(in srgb, var(--accent-soft) 64%, white);
-  border-color: color-mix(in srgb, var(--accent) 24%, white);
-  color: color-mix(in srgb, var(--accent) 56%, var(--text));
   display: inline-flex;
   gap: 0.45rem;
   padding: 0.52rem 0.84rem;
-}
-
-.portability-action-button:hover {
-  background: color-mix(in srgb, var(--accent-soft) 86%, black);
-  border-color: color-mix(in srgb, var(--accent) 34%, black);
 }
 
 .inline-errors {
@@ -872,7 +734,6 @@ input[type="checkbox"] {
 
 .metric-tile {
   align-content: start;
-  background: linear-gradient(180deg, var(--surface), var(--surface-2));
   border: 1px solid var(--border);
   border-radius: 12px;
   min-height: 74px;

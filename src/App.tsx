@@ -323,7 +323,7 @@ function App() {
           className="debug-toggle"
           data-testid="debug-drawer-toggle"
           type="button"
-          variant="ghost"
+          variant="default"
           onClick={() => setIsDebugDrawerOpen((current) => !current)}
         >
           {isDebugDrawerOpen ? "Hide developer tools" : "Show developer tools"}

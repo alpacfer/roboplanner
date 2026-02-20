@@ -64,7 +64,7 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
           size="icon"
           title="Add run"
           type="button"
-          variant="ghost"
+          variant="default"
           onClick={addRun}
         >
           <span aria-hidden="true" className="icon-glyph">
