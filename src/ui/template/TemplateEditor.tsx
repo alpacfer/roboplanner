@@ -1,4 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
 import type { OperatorInvolvement, Step, StepGroup } from "../../domain/types";
@@ -201,7 +204,7 @@ function StepItem({
         <div className={`template-step-title-row ${!isGrouped ? "has-color-picker" : ""}`}>
           <label className="field-row step-name-field">
             <span>Step name</span>
-            <input
+            <Input
               aria-label={`Step name ${step.id}`}
               placeholder="Step name"
               type="text"
@@ -303,71 +306,79 @@ function StepItem({
 
           {!isGrouped ? (
             <div className="step-header-actions">
-              <button
+              <Button
                 aria-label={`Move step ${stepIndex + 1} up`}
                 disabled={!canMoveUp}
+                variant="outline"
                 type="button"
                 onClick={() => onMove(step.id, -1)}
               >
                 ↑
-              </button>
-              <button
+              </Button>
+              <Button
                 aria-label={`Move step ${stepIndex + 1} down`}
                 disabled={!canMoveDown}
+                variant="outline"
                 type="button"
                 onClick={() => onMove(step.id, 1)}
               >
                 ↓
-              </button>
-              <button
+              </Button>
+              <Button
                 aria-label={`Delete step ${stepIndex + 1}`}
                 className="group-delete-button icon-button"
+                size="icon"
                 title={`Delete step ${step.name}`}
                 type="button"
+                variant="destructive"
                 onClick={() => onRequestDelete(step.id)}
               >
                 <span aria-hidden="true" className="icon-glyph">
                   ×
                 </span>
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>
 
         {isGrouped ? (
-          <button
+          <Button
             aria-label={`Delete step ${stepIndex + 1}`}
             className="icon-button danger-ghost-button step-delete-button"
+            size="icon"
             title={`Delete step ${step.name}`}
             type="button"
+            variant="destructive"
             onClick={() => onRequestDelete(step.id)}
           >
             <span aria-hidden="true" className="icon-glyph">
               ×
             </span>
-          </button>
+          </Button>
         ) : null}
       </div>
 
       {isGrouped ? (
         <div className="template-step-lower">
           <div className="row-actions">
-            <button
+            <Button
               aria-label={`Move step ${stepIndex + 1} up`}
               disabled={!canMoveUp}
+              variant="outline"
               type="button"
               onClick={() => onMove(step.id, -1)}
             >
               ↑
-            </button>
-            <button
+            </Button>
+            <Button
               aria-label={`Move step ${stepIndex + 1} down`}
               disabled={!canMoveDown}
+              variant="outline"
               type="button"
               onClick={() => onMove(step.id, 1)}
             >
               ↓
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -689,49 +700,60 @@ function TemplateEditor({
         </div>
 
         <div className="template-editor-actions">
-          <button aria-label="Import scenario" className="portability-action-button" type="button" onClick={onImportClick}>
+          <Button
+            aria-label="Import scenario"
+            className="portability-action-button"
+            type="button"
+            variant="outline"
+            onClick={onImportClick}
+          >
             <span aria-hidden="true" className="icon-glyph">
               ⤵
             </span>
             <span>Import</span>
-          </button>
-          <button
+          </Button>
+          <Button
             aria-label={areAllCollapsed ? "Expand all sequences" : "Collapse all sequences"}
             className="icon-button"
             disabled={stepGroups.length === 0}
+            size="icon"
             type="button"
+            variant="outline"
             onClick={toggleCollapseAll}
           >
             <span aria-hidden="true" className="icon-glyph">
               {areAllCollapsed ? "▾" : "▸"}
             </span>
-          </button>
-          <button
+          </Button>
+          <Button
             aria-label="Delete all sequences"
             className="icon-button danger-ghost-button"
             disabled={stepGroups.length === 0}
+            size="icon"
             type="button"
+            variant="destructive"
             onClick={() => setPendingDelete({ kind: "all-groups" })}
           >
             <span aria-hidden="true" className="icon-glyph">
               ×
             </span>
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="template-flow-grid">
         <div className="insertion-rail insertion-rail-top-level" data-testid="top-level-insert-0">
-          <button aria-label="Add step at top level position 1" type="button" onClick={() => insertStepAtTopLevel(0)}>
+          <Button aria-label="Add step at top level position 1" type="button" variant="outline" onClick={() => insertStepAtTopLevel(0)}>
             Add step
-          </button>
-          <button
+          </Button>
+          <Button
             aria-label="Add sequence at top level position 1"
             type="button"
+            variant="outline"
             onClick={() => insertSequenceAtTopLevel(0)}
           >
             Add sequence
-          </button>
+          </Button>
         </div>
 
         {topLevelBlocks.map((block, blockIndex) => {
@@ -758,10 +780,12 @@ function TemplateEditor({
                   data-testid="template-group-card"
                 >
                   <div className="template-group-header">
-                    <button
+                    <Button
                       aria-label={`${collapsed ? "Expand" : "Collapse"} sequence ${group.name}`}
                       className="group-toggle-button icon-button"
+                      size="icon"
                       type="button"
+                      variant="outline"
                       onClick={() => {
                         const nextCollapsed = !collapsed;
                         setCollapsedGroups((current) => ({ ...current, [group.id]: nextCollapsed }));
@@ -773,10 +797,10 @@ function TemplateEditor({
                       <span aria-hidden="true" className="icon-glyph">
                         {collapsed ? "▸" : "▾"}
                       </span>
-                    </button>
+                    </Button>
 
                     <label className="field-row sequence-name-field">
-                      <input
+                      <Input
                         aria-label={`Sequence name ${group.name}`}
                         placeholder="Sequence name"
                         type="text"
@@ -837,36 +861,42 @@ function TemplateEditor({
                       </div>
                     </label>
 
-                    {errorCount > 0 ? <span className="group-error-pill has-errors">{errorCount} issues</span> : null}
-                    <span className="group-count-label">{groupSteps.length} steps</span>
+                    {errorCount > 0 ? <Badge className="group-error-pill has-errors">{errorCount} issues</Badge> : null}
+                    <Badge className="group-count-label" variant="secondary">
+                      {groupSteps.length} steps
+                    </Badge>
 
                     <div className="group-header-actions">
-                      <button
+                      <Button
                         aria-label={`Move sequence ${group.name} up`}
                         disabled={blockIndex === 0}
+                        variant="outline"
                         type="button"
                         onClick={() => moveSequence(group.id, -1)}
                       >
                         ↑
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         aria-label={`Move sequence ${group.name} down`}
                         disabled={blockIndex >= topLevelBlocks.length - 1}
+                        variant="outline"
                         type="button"
                         onClick={() => moveSequence(group.id, 1)}
                       >
                         ↓
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         aria-label={`Delete sequence ${group.name}`}
                         className="group-delete-button icon-button"
+                        size="icon"
                         type="button"
+                        variant="destructive"
                         onClick={() => setPendingDelete({ kind: "group", groupId: group.id })}
                       >
                         <span aria-hidden="true" className="icon-glyph">
                           ×
                         </span>
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -875,13 +905,14 @@ function TemplateEditor({
                       {Array.from({ length: groupSteps.length + 1 }).map((_, groupInsertIndex) => (
                         <Fragment key={`${group.id}-insert-${groupInsertIndex}`}>
                           <div className="insertion-rail insertion-rail-group" data-testid={`group-${group.id}-insert-${groupInsertIndex}`}>
-                            <button
+                            <Button
                               aria-label={`Add step in ${group.name} at position ${groupInsertIndex + 1}`}
                               type="button"
+                              variant="outline"
                               onClick={() => insertStepInSequence(group.id, groupInsertIndex)}
                             >
                               Add step
-                            </button>
+                            </Button>
                           </div>
 
                           {groupInsertIndex < groupSteps.length ? (
@@ -905,20 +936,22 @@ function TemplateEditor({
                 </article>
 
                 <div className="insertion-rail insertion-rail-top-level" data-testid={`top-level-insert-${blockIndex + 1}`}>
-                  <button
+                  <Button
                     aria-label={`Add step at top level position ${blockIndex + 2}`}
                     type="button"
+                    variant="outline"
                     onClick={() => insertStepAtTopLevel(blockIndex + 1)}
                   >
                     Add step
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     aria-label={`Add sequence at top level position ${blockIndex + 2}`}
                     type="button"
+                    variant="outline"
                     onClick={() => insertSequenceAtTopLevel(blockIndex + 1)}
                   >
                     Add sequence
-                  </button>
+                  </Button>
                 </div>
               </Fragment>
             );
@@ -946,20 +979,22 @@ function TemplateEditor({
               </article>
 
               <div className="insertion-rail insertion-rail-top-level" data-testid={`top-level-insert-${blockIndex + 1}`}>
-                <button
+                <Button
                   aria-label={`Add step at top level position ${blockIndex + 2}`}
                   type="button"
+                  variant="outline"
                   onClick={() => insertStepAtTopLevel(blockIndex + 1)}
                 >
                   Add step
-                </button>
-                <button
+                </Button>
+                <Button
                   aria-label={`Add sequence at top level position ${blockIndex + 2}`}
                   type="button"
+                  variant="outline"
                   onClick={() => insertSequenceAtTopLevel(blockIndex + 1)}
                 >
                   Add sequence
-                </button>
+                </Button>
               </div>
             </Fragment>
           );
@@ -967,12 +1002,12 @@ function TemplateEditor({
       </div>
 
       <div className="template-portability-footer">
-        <button aria-label="Export scenario" className="portability-action-button" type="button" onClick={onExportClick}>
+        <Button aria-label="Export scenario" className="portability-action-button" type="button" variant="outline" onClick={onExportClick}>
           <span aria-hidden="true" className="icon-glyph">
             ⤴
           </span>
           <span>Export</span>
-        </button>
+        </Button>
         <p className="portability-status" data-testid="scenario-status">
           {portabilityStatus}
         </p>
