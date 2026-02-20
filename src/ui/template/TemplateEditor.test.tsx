@@ -158,6 +158,7 @@ describe("TemplateEditor", () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
+    await user.click(screen.getByRole("button", { name: "Open step color menu step-1" }));
     const colorInput = screen.getByLabelText("Step color step-1") as HTMLInputElement;
     await user.click(colorInput);
     fireEvent.input(colorInput, { target: { value: "#00ff00" } });
@@ -193,6 +194,29 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByRole("button", { name: "Sequence preset 1 #f28e2b" }));
 
     expect(screen.getByTestId("groups-state").textContent).toContain('"color":"#f28e2b"');
+  });
+
+  it("closes sequence color menu when clicking outside", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Add sequence" }));
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu 1" }));
+    expect(screen.getByLabelText("Sequence color menu 1")).toBeTruthy();
+
+    await user.click(screen.getByText("Template Steps"));
+    expect(screen.queryByLabelText("Sequence color menu 1")).toBeNull();
+  });
+
+  it("closes unsequenced step color menu when clicking outside", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Open step color menu step-1" }));
+    expect(screen.getByLabelText("Step color menu step-1")).toBeTruthy();
+
+    await user.click(screen.getByText("Template Steps"));
+    expect(screen.queryByLabelText("Step color menu step-1")).toBeNull();
   });
 
   it("keeps sequence color picker available when sequence is collapsed", async () => {

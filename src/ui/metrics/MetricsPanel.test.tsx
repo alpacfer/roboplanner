@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import MetricsPanel from "./MetricsPanel";
 
 describe("MetricsPanel", () => {
-  it("renders the provided metrics values", () => {
+  it("renders metrics with explicit units and percent", () => {
     render(
       <MetricsPanel
         metrics={{
@@ -15,9 +15,26 @@ describe("MetricsPanel", () => {
       />,
     );
 
-    expect(screen.getByTestId("metric-makespan").textContent).toBe("50");
-    expect(screen.getByTestId("metric-operator-busy").textContent).toBe("40");
-    expect(screen.getByTestId("metric-operator-utilization").textContent).toBe("0.80");
-    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("10");
+    expect(screen.getByTestId("metric-makespan").textContent).toBe("50 min");
+    expect(screen.getByTestId("metric-operator-busy").textContent).toBe("40 min");
+    expect(screen.getByTestId("metric-operator-utilization").textContent).toBe("80.0%");
+    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("10 min");
+  });
+
+  it("formats long durations as hours and minutes", () => {
+    render(
+      <MetricsPanel
+        metrics={{
+          makespan: 125,
+          operatorBusyMin: 60,
+          operatorUtilization: 0.5,
+          totalWaitingMin: 181,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("metric-makespan").textContent).toBe("2 h 5 min");
+    expect(screen.getByTestId("metric-operator-busy").textContent).toBe("1 h 0 min");
+    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("3 h 1 min");
   });
 });

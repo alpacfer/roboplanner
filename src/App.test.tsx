@@ -275,7 +275,7 @@ describe("App step sequences", () => {
     await user.click(screen.getByRole("button", { name: "Simulate" }));
 
     expect(screen.getByText("3 segments visible")).toBeTruthy();
-    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("10");
+    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("10 min");
 
     const payload = JSON.stringify(
       {
@@ -304,8 +304,8 @@ describe("App step sequences", () => {
     );
 
     expect(screen.getByText("0 segments visible")).toBeTruthy();
-    expect(screen.getByTestId("metric-makespan").textContent).toBe("0");
-    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("0");
+    expect(screen.getByTestId("metric-makespan").textContent).toBe("0 min");
+    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("0 min");
     expect((screen.getByLabelText("Run label 1") as HTMLInputElement).value).toBe("OnlyRun");
     expect((screen.getByLabelText("Operator capacity") as HTMLInputElement).value).toBe("2");
   });

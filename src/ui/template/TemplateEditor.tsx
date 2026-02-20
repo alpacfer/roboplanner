@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
 import type { OperatorInvolvement, Step, StepGroup } from "../../domain/types";
@@ -76,6 +76,27 @@ function StepItem({
   canMoveDown,
   onDelete,
 }: StepItemProps) {
+  const [isStepColorMenuOpen, setIsStepColorMenuOpen] = useState(false);
+  const stepColor = normalizeStepColor(step.color);
+  const stepColorPickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isStepColorMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!stepColorPickerRef.current?.contains(event.target as Node)) {
+        setIsStepColorMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isStepColorMenuOpen]);
+
   return (
     <article className="template-step-item" data-testid="step-item" data-step-id={step.id}>
       <div className="template-step-top">
@@ -144,36 +165,49 @@ function StepItem({
       <div className={`template-step-lower ${isGrouped ? "is-grouped" : ""}`}>
         {!isGrouped ? (
           <div className="step-color-cell">
-            <label className="field-row color-field">
-              <span>Step color</span>
-              <input
-                aria-label={`Step color ${step.id}`}
-                type="color"
-                value={normalizeStepColor(step.color)}
-                onChange={(event) => {
-                  onUpdate(step.id, {
-                    ...step,
-                    color: event.target.value,
-                  });
-                }}
+            <div ref={stepColorPickerRef} className="group-color-picker">
+              <button
+                aria-expanded={isStepColorMenuOpen}
+                aria-label={`Open step color menu ${step.id}`}
+                className="group-color-trigger"
+                style={{ backgroundColor: stepColor }}
+                title={`Open step color menu for ${step.name}`}
+                type="button"
+                onClick={() => setIsStepColorMenuOpen((current) => !current)}
               />
-            </label>
-            <div className="step-color-presets">
-              {STEP_COLOR_PRESETS.map((presetColor) => (
-                <button
-                  key={presetColor}
-                  aria-label={`Preset ${step.id} ${presetColor}`}
-                  className="color-preset-button"
-                  style={{ backgroundColor: presetColor }}
-                  type="button"
-                  onClick={() => {
-                    onUpdate(step.id, {
-                      ...step,
-                      color: presetColor,
-                    });
-                  }}
-                />
-              ))}
+              {isStepColorMenuOpen ? (
+                <div aria-label={`Step color menu ${step.id}`} className="group-color-menu" role="menu">
+                  <input
+                    aria-label={`Step color ${step.id}`}
+                    type="color"
+                    value={stepColor}
+                    onChange={(event) => {
+                      onUpdate(step.id, {
+                        ...step,
+                        color: event.target.value,
+                      });
+                    }}
+                  />
+                  <div className="step-color-presets">
+                    {STEP_COLOR_PRESETS.map((presetColor) => (
+                      <button
+                        key={presetColor}
+                        aria-label={`Preset ${step.id} ${presetColor}`}
+                        className="color-preset-button"
+                        style={{ backgroundColor: presetColor }}
+                        type="button"
+                        onClick={() => {
+                          onUpdate(step.id, {
+                            ...step,
+                            color: presetColor,
+                          });
+                          setIsStepColorMenuOpen(false);
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -333,6 +367,28 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
     setCollapsedGroups(Object.fromEntries(orderedBucketKeys.map((key) => [key, true])));
   };
 
+  useEffect(() => {
+    if (!openGroupColorMenuId) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      const openPicker = document.querySelector(
+        `[data-group-color-picker-id="${openGroupColorMenuId}"]`,
+      ) as HTMLElement | null;
+
+      if (!openPicker?.contains(target)) {
+        setOpenGroupColorMenuId(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [openGroupColorMenuId]);
+
   return (
     <section className="template-editor">
       <div className="template-editor-header">
@@ -427,7 +483,7 @@ function TemplateEditor({ steps, stepGroups, onChange }: TemplateEditorProps) {
                   />
                 </label>
                 <div className="group-color-field">
-                  <div className="group-color-picker">
+                  <div className="group-color-picker" data-group-color-picker-id={group.id}>
                     <button
                       aria-expanded={openGroupColorMenuId === group.id}
                       aria-label={`Open sequence color menu ${groupIndex + 1}`}
