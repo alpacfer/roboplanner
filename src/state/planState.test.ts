@@ -20,16 +20,7 @@ describe("default plan", () => {
           "queuePolicy": "FIFO",
         },
         "stepGroups": [],
-        "template": [
-          {
-            "color": "#4e79a7",
-            "durationMin": 10,
-            "groupId": null,
-            "id": "step-1",
-            "name": "Prep",
-            "operatorInvolvement": "WHOLE",
-          },
-        ],
+        "template": [],
       }
     `);
   });

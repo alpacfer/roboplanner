@@ -14,13 +14,13 @@ interface TimelineSvgProps {
   viewEndMin?: number;
 }
 
-const LANE_HEIGHT = 44;
-const LANE_GAP = 10;
+export const LANE_HEIGHT = 44;
+export const LANE_GAP = 10;
 export const TIMELINE_LEFT_PAD = 84;
 export const TIMELINE_RIGHT_PAD = 24;
-const TOP_PAD = 18;
-const AXIS_HEIGHT = 26;
-const BOTTOM_PAD = 18;
+export const TOP_PAD = 18;
+export const AXIS_HEIGHT = 26;
+export const BOTTOM_PAD = 18;
 const BAR_HEIGHT = 28;
 const LABEL_HORIZONTAL_PADDING = 10;
 const APPROX_CHAR_WIDTH = 5;
@@ -60,6 +60,10 @@ interface StepLayout {
   endCheckpointWidth: number;
   stepWidth: number;
   totalWidth: number;
+}
+
+function timelineSvgHeightForRunCount(runCount: number): number {
+  return TOP_PAD + AXIS_HEIGHT + runCount * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
 }
 
 function involvementLabel(segment: Segment): string {
@@ -276,7 +280,7 @@ function TimelineSvg({
   const effectiveViewEndMin =
     viewEndMin ?? (segments.length > 0 ? Math.max(...segments.map((segment) => segment.endMin)) : viewStartMin);
   const width = TIMELINE_LEFT_PAD + (effectiveViewEndMin - viewStartMin) * pxPerMin + TIMELINE_RIGHT_PAD;
-  const height = TOP_PAD + AXIS_HEIGHT + runs.length * (LANE_HEIGHT + LANE_GAP) + BOTTOM_PAD;
+  const height = timelineSvgHeightForRunCount(runs.length);
   const visibleSegments = filterSegmentsByViewport(segments, viewStartMin, effectiveViewEndMin);
   const checkpointLookup = buildCheckpointLookup(segments);
   const stepSpanLookup = buildStepSpanLookup(segments);

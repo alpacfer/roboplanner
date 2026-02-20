@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deserializeScenarioData, migrateScenarioData, serializeScenarioData } from "./schema";
+import { SCENARIO_SCHEMA_VERSION, deserializeScenarioData, migrateScenarioData, serializeScenarioData } from "./schema";
 
 describe("scenario schema", () => {
   it("round-trips exported v3 scenario data with groups", () => {
@@ -16,7 +16,7 @@ describe("scenario schema", () => {
     const parsed = deserializeScenarioData(serialized);
 
     expect(parsed).toEqual({
-      version: 3,
+      version: SCENARIO_SCHEMA_VERSION,
       template: [
         { id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: "g1" },
         { id: "s2", name: "Measure", durationMin: 5, operatorInvolvement: "NONE", groupId: null },
@@ -35,7 +35,7 @@ describe("scenario schema", () => {
       settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
     });
 
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(SCENARIO_SCHEMA_VERSION);
     expect(migrated.template[0].operatorInvolvement).toBe("WHOLE");
     expect(migrated.template[0].groupId).toBeNull();
     expect(migrated.stepGroups).toEqual([]);
@@ -49,7 +49,7 @@ describe("scenario schema", () => {
       settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
     });
 
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(SCENARIO_SCHEMA_VERSION);
     expect(migrated.template[0].groupId).toBeNull();
     expect(migrated.stepGroups).toEqual([]);
   });
@@ -57,7 +57,7 @@ describe("scenario schema", () => {
   it("rejects payload with unknown step group reference", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: "missing" }],
         stepGroups: [{ id: "g1", name: "Main", color: "#4e79a7" }],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
@@ -69,7 +69,7 @@ describe("scenario schema", () => {
   it("rejects payload with invalid group color", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: "g1" }],
         stepGroups: [{ id: "g1", name: "Main", color: "red" }],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
@@ -81,7 +81,7 @@ describe("scenario schema", () => {
   it("rejects payload with non-integer step duration", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10.5, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
@@ -93,7 +93,7 @@ describe("scenario schema", () => {
   it("rejects payload with non-integer run start", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [{ id: "r1", label: "R1", startMin: 0.25, templateId: "plan-default" }],
@@ -105,7 +105,7 @@ describe("scenario schema", () => {
   it("rejects payload with non-integer operator capacity", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
@@ -117,7 +117,7 @@ describe("scenario schema", () => {
   it("rejects payload with queuePolicy values other than FIFO", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
@@ -126,22 +126,22 @@ describe("scenario schema", () => {
     ).toThrow("Scenario payload has invalid settings data.");
   });
 
-  it("rejects payload with empty template", () => {
-    expect(() =>
-      migrateScenarioData({
-        version: 3,
-        template: [],
-        stepGroups: [],
-        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
-        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
-      }),
-    ).toThrow("Scenario payload has invalid template data.");
+  it("accepts v3 payload with empty template", () => {
+    const migrated = migrateScenarioData({
+      version: SCENARIO_SCHEMA_VERSION,
+      template: [],
+      stepGroups: [],
+      runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+      settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+    });
+
+    expect(migrated.template).toEqual([]);
   });
 
   it("rejects payload with empty runs", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [],
@@ -153,7 +153,7 @@ describe("scenario schema", () => {
   it("rejects payload with duplicate step ids", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [
           { id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null },
           { id: "s1", name: "Measure", durationMin: 10, operatorInvolvement: "NONE", groupId: null },
@@ -168,7 +168,7 @@ describe("scenario schema", () => {
   it("rejects payload with duplicate run ids", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [
@@ -183,7 +183,7 @@ describe("scenario schema", () => {
   it("rejects payload with empty names", () => {
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: " ", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
@@ -193,7 +193,7 @@ describe("scenario schema", () => {
 
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
         stepGroups: [],
         runs: [{ id: "r1", label: " ", startMin: 0, templateId: "plan-default" }],
@@ -203,7 +203,7 @@ describe("scenario schema", () => {
 
     expect(() =>
       migrateScenarioData({
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: "g1" }],
         stepGroups: [{ id: "g1", name: " ", color: "#4e79a7" }],
         runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],

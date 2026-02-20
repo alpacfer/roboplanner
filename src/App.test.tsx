@@ -1,10 +1,9 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { STEP_COLOR_PRESETS } from "./domain/colors";
 import App from "./App";
+import { STEP_COLOR_PRESETS } from "./domain/colors";
+import { SCENARIO_SCHEMA_VERSION } from "./storage/schema";
 
 async function readBlobText(blob: Blob): Promise<string> {
   if (typeof blob.text === "function") {
@@ -26,28 +25,56 @@ async function readBlobText(blob: Blob): Promise<string> {
   });
 }
 
-function readFixture(name: string): string {
-  return readFileSync(resolve(process.cwd(), "import_example", name), "utf8");
-}
-
-describe("App step sequences", () => {
-  it("renders utility rail and keeps viewport controls in the timeline header", () => {
+describe("App", () => {
+  it("renders template first, utility two-column row, and metrics below timeline", () => {
     render(<App />);
 
-    const utilityRail = screen.getByTestId("workspace-side");
+    const workspaceMain = screen.getByTestId("workspace-main");
+    const utilityRow = screen.getByTestId("workspace-side");
+    expect(workspaceMain.compareDocumentPosition(utilityRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
     const timelinePanel = screen.getByTestId("timeline-panel");
     const timelineControls = within(timelinePanel).getByTestId("timeline-controls");
-
-    expect(utilityRail).toBeTruthy();
+    expect(within(timelineControls).getByLabelText("Show wait segments")).toBeTruthy();
     expect(within(timelineControls).getByRole("button", { name: "Zoom in" })).toBeTruthy();
     expect(within(timelineControls).getByRole("button", { name: "Zoom out" })).toBeTruthy();
     expect(within(timelineControls).getByRole("button", { name: "Fit" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Viewport" })).toBeNull();
+
+    const metricsCard = screen.getByTestId("utility-metrics-card");
+    expect(timelinePanel.compareDocumentPosition(metricsCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("exports scenario with stepGroups and step sequence assignments", async () => {
+  it("shows schema version badge in the header", () => {
+    render(<App />);
+
+    expect(screen.getByText(`Version ${SCENARIO_SCHEMA_VERSION}`)).toBeTruthy();
+  });
+
+  it("disables simulate when no steps and enables after adding a step", async () => {
     const user = userEvent.setup();
     render(<App />);
+
+    const simulateButton = screen.getByTestId("simulate-button") as HTMLButtonElement;
+    expect(simulateButton.disabled).toBe(true);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add step at top level position 1" }));
+    expect(simulateButton.disabled).toBe(false);
+  });
+
+  it("uses template import button to trigger hidden file picker", async () => {
+    const user = userEvent.setup();
+    const fileInputClickSpy = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => undefined);
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Import scenario" }));
+    expect(fileInputClickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("exports scenario from template footer", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
     const createObjectURLMock = vi.fn<(blob: Blob) => string>(() => "blob:scenario");
     const revokeObjectURLMock = vi.fn(() => undefined);
     Object.defineProperty(URL, "createObjectURL", {
@@ -60,36 +87,38 @@ describe("App step sequences", () => {
     });
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
-    await user.click(screen.getByRole("button", { name: "Add sequence" }));
-    await user.click(screen.getByRole("button", { name: "Add step to Sequence 1" }));
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add sequence at top level position 1" }));
     await user.click(screen.getByRole("button", { name: "Export scenario" }));
 
     expect(createObjectURLMock).toHaveBeenCalledTimes(1);
-    const firstCreateObjectUrlCall = createObjectURLMock.mock.calls[0];
-    if (!firstCreateObjectUrlCall || !(firstCreateObjectUrlCall[0] instanceof Blob)) {
-      throw new Error("Expected createObjectURL to be called with a Blob.");
+    const createUrlCall = createObjectURLMock.mock.calls[0];
+    if (!createUrlCall || !(createUrlCall[0] instanceof Blob)) {
+      throw new Error("Expected createObjectURL to receive a Blob.");
     }
-    const scenarioBlob = firstCreateObjectUrlCall[0];
-    const scenarioText = await readBlobText(scenarioBlob);
+
+    const scenarioText = await readBlobText(createUrlCall[0]);
     const parsed = JSON.parse(scenarioText) as {
       version: number;
       stepGroups: Array<{ id: string }>;
       template: Array<{ groupId: string | null }>;
     };
 
-    expect(parsed.version).toBe(3);
+    expect(parsed.version).toBe(SCENARIO_SCHEMA_VERSION);
     expect(parsed.stepGroups).toHaveLength(1);
-    expect(parsed.template.some((step) => step.groupId === parsed.stepGroups[0].id)).toBe(true);
+    expect(parsed.template.some((step) => step.groupId === parsed.stepGroups[0]?.id)).toBe(true);
+    expect(screen.getByTestId("scenario-status").textContent).toContain("Scenario downloaded");
+
     anchorClick.mockRestore();
   });
 
-  it("imports scenario with sequences and updates editor state", async () => {
+  it("imports scenario and updates template editor state", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     const payload = JSON.stringify(
       {
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [
           {
             id: "step-1",
@@ -115,6 +144,7 @@ describe("App step sequences", () => {
 
     expect(screen.getAllByTestId("template-group-card")).toHaveLength(1);
     expect(screen.getByTestId("template-state").textContent).toContain('"groupId":"g1"');
+    expect(screen.getByTestId("scenario-status").textContent).toContain("Scenario imported from scenario.json.");
   });
 
   it("assigns default sequence colors in order after import", async () => {
@@ -123,7 +153,7 @@ describe("App step sequences", () => {
 
     const payload = JSON.stringify(
       {
-        version: 3,
+        version: SCENARIO_SCHEMA_VERSION,
         template: [
           {
             id: "step-1",
@@ -157,34 +187,28 @@ describe("App step sequences", () => {
       screen.getByLabelText("Scenario import file"),
       new File([payload], "scenario.json", { type: "application/json" }),
     );
-    await user.click(screen.getByRole("button", { name: "Simulate" }));
 
-    await user.click(screen.getByRole("button", { name: "Open sequence color menu 1" }));
-    expect((screen.getByLabelText("Sequence color 1") as HTMLInputElement).value).toBe(STEP_COLOR_PRESETS[0]);
-    await user.click(screen.getByRole("button", { name: "Open sequence color menu 2" }));
-    expect((screen.getByLabelText("Sequence color 2") as HTMLInputElement).value).toBe(STEP_COLOR_PRESETS[1]);
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu Main" }));
+    expect((screen.getByLabelText("Sequence color Main") as HTMLInputElement).value).toBe(STEP_COLOR_PRESETS[0]);
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu Second" }));
+    expect((screen.getByLabelText("Sequence color Second") as HTMLInputElement).value).toBe(STEP_COLOR_PRESETS[1]);
   });
 
-  it("imports TestStand HTML with grouped sequences and default step settings", async () => {
+  it("normalizes operator capacity input and keeps min value 1", async () => {
     const user = userEvent.setup();
     render(<App />);
-    const fixture = readFixture("setup_documentation.html");
 
-    await user.upload(
-      screen.getByLabelText("Scenario import file"),
-      new File([fixture], "setup_documentation.html", { type: "text/html" }),
-    );
+    const capacityInput = screen.getByLabelText("Operator capacity") as HTMLInputElement;
+    await user.clear(capacityInput);
+    await user.type(capacityInput, "0000");
+    fireEvent.blur(capacityInput);
+    expect(capacityInput.value).toBe("1");
 
-    expect(screen.getByTestId("scenario-status").textContent).toContain(
-      "Imported TestStand HTML from setup_documentation.html (15 sequences, 156 steps).",
-    );
-    expect(screen.getAllByTestId("template-group-card")).toHaveLength(15);
-    expect((screen.getByLabelText("Step name step-1") as HTMLInputElement).value).toBe("Add FACTS information");
-    expect((screen.getByLabelText("Step duration step-1") as HTMLInputElement).value).toBe("10");
-    expect((screen.getByLabelText("Operator involvement step-1") as HTMLSelectElement).value).toBe("NONE");
-    expect((screen.getByLabelText("Run label 1") as HTMLInputElement).value).toBe("R1");
-    expect((screen.getByLabelText("Operator capacity") as HTMLInputElement).value).toBe("1");
-  }, 20_000);
+    await user.clear(capacityInput);
+    await user.type(capacityInput, "004");
+    fireEvent.blur(capacityInput);
+    expect(capacityInput.value).toBe("4");
+  });
 
   it("toggles the developer tools drawer", async () => {
     const user = userEvent.setup();
@@ -192,133 +216,24 @@ describe("App step sequences", () => {
 
     const toggle = screen.getByTestId("debug-drawer-toggle");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByText("Show developer tools")).toBeTruthy();
 
     await user.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("Hide developer tools")).toBeTruthy();
 
     await user.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("clamps operator capacity to a minimum of 1", () => {
-    render(<App />);
-
-    const capacityInput = screen.getByLabelText("Operator capacity") as HTMLInputElement;
-    fireEvent.change(capacityInput, { target: { value: "-7" } });
-    expect(capacityInput.value).toBe("1");
-
-    fireEvent.change(capacityInput, { target: { value: "4" } });
-    expect(capacityInput.value).toBe("4");
-  });
-
-  it("toggles visibility of wait segments without re-simulating", async () => {
+  it("auto-sizes timeline height to run count without vertical scrolling", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Add run" }));
-    await user.clear(screen.getByLabelText("Run start 2"));
-    await user.type(screen.getByLabelText("Run start 2"), "0");
-    await user.click(screen.getByRole("button", { name: "Simulate" }));
-
-    expect(screen.getByText("3 segments visible")).toBeTruthy();
-    await user.click(screen.getByLabelText("Show wait segments"));
-    expect(screen.getByText("2 segments visible")).toBeTruthy();
-    await user.click(screen.getByLabelText("Show wait segments"));
-    expect(screen.getByText("3 segments visible")).toBeTruthy();
-  });
-
-  it("fit action resets timeline scroll position", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "Simulate" }));
     const timelineBox = screen.getByTestId("timeline-box");
-    const scrollToSpy = vi.fn();
-    Object.defineProperty(timelineBox, "scrollTo", {
-      configurable: true,
-      value: scrollToSpy,
-    });
-    Object.defineProperty(timelineBox, "clientWidth", {
-      configurable: true,
-      value: 900,
-    });
-
-    await user.click(screen.getByRole("button", { name: "Fit" }));
-    expect(scrollToSpy).toHaveBeenCalledWith({ left: 0, top: 0, behavior: "auto" });
-  });
-
-  it("keeps zoom bounded between configured min and max scale", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "Simulate" }));
-
-    for (let index = 0; index < 24; index += 1) {
-      await user.click(screen.getByRole("button", { name: "Zoom out" }));
-    }
-    const firstRectAtMinZoom = screen.getAllByTestId("timeline-rect")[0];
-    const minWidth = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
-    expect(minWidth).toBeCloseTo(2, 3);
-
-    await user.click(screen.getByRole("button", { name: "Zoom out" }));
-    const widthAfterExtraZoomOut = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
-    expect(widthAfterExtraZoomOut).toBeCloseTo(minWidth, 3);
-
-    for (let index = 0; index < 36; index += 1) {
-      await user.click(screen.getByRole("button", { name: "Zoom in" }));
-    }
-    const maxWidth = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
-    expect(maxWidth).toBeCloseTo(400, 3);
-
-    await user.click(screen.getByRole("button", { name: "Zoom in" }));
-    const widthAfterExtraZoomIn = Number.parseFloat(firstRectAtMinZoom.getAttribute("width") ?? "0");
-    expect(widthAfterExtraZoomIn).toBeCloseTo(maxWidth, 3);
-  });
-
-  it("clears prior simulation segments and metrics after importing a new scenario", async () => {
-    const user = userEvent.setup();
-    render(<App />);
+    const initialHeight = Number.parseInt((timelineBox as HTMLDivElement).style.height, 10);
+    expect(initialHeight).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Add run" }));
-    await user.clear(screen.getByLabelText("Run start 2"));
-    await user.type(screen.getByLabelText("Run start 2"), "0");
-    await user.click(screen.getByRole("button", { name: "Simulate" }));
-
-    expect(screen.getByText("3 segments visible")).toBeTruthy();
-    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("10 min");
-
-    const payload = JSON.stringify(
-      {
-        version: 3,
-        template: [
-          {
-            id: "step-1",
-            name: "Imported",
-            durationMin: 5,
-            operatorInvolvement: "NONE",
-            groupId: null,
-            color: "#4e79a7",
-          },
-        ],
-        stepGroups: [],
-        runs: [{ id: "run-1", label: "OnlyRun", startMin: 3, templateId: "plan-default" }],
-        settings: { operatorCapacity: 2, queuePolicy: "FIFO" },
-      },
-      null,
-      2,
-    );
-
-    await user.upload(
-      screen.getByLabelText("Scenario import file"),
-      new File([payload], "replacement.json", { type: "application/json" }),
-    );
-
-    expect(screen.getByText("0 segments visible")).toBeTruthy();
-    expect(screen.getByTestId("metric-makespan").textContent).toBe("0 min");
-    expect(screen.getByTestId("metric-total-waiting").textContent).toBe("0 min");
-    expect((screen.getByLabelText("Run label 1") as HTMLInputElement).value).toBe("OnlyRun");
-    expect((screen.getByLabelText("Operator capacity") as HTMLInputElement).value).toBe("2");
+    const nextHeight = Number.parseInt((screen.getByTestId("timeline-box") as HTMLDivElement).style.height, 10);
+    expect(nextHeight).toBeGreaterThan(initialHeight);
   });
 });

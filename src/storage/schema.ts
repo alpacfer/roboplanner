@@ -1,6 +1,8 @@
 import { mapLegacyRequiresOperator } from "../domain/operator";
 import type { OperatorInvolvement, PlanSettings, Run, Step, StepGroup } from "../domain/types";
 
+export const SCENARIO_SCHEMA_VERSION = 3;
+
 export interface ScenarioDataV2 {
   version: 2;
   template: Array<Omit<Step, "groupId">>;
@@ -9,7 +11,7 @@ export interface ScenarioDataV2 {
 }
 
 export interface ScenarioDataV3 {
-  version: 3;
+  version: typeof SCENARIO_SCHEMA_VERSION;
   template: Step[];
   stepGroups: StepGroup[];
   runs: Run[];
@@ -101,7 +103,7 @@ function isValidPlanSettings(value: unknown): value is PlanSettings {
 
 export function serializeScenarioData(input: Omit<ScenarioDataV3, "version">): string {
   const payload: ScenarioDataV3 = {
-    version: 3,
+    version: SCENARIO_SCHEMA_VERSION,
     template: input.template,
     stepGroups: input.stepGroups,
     runs: input.runs,
@@ -182,7 +184,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
 
   const { template, runs, settings } = raw;
   const version = raw.version;
-  if (version !== 1 && version !== 2 && version !== 3) {
+  if (version !== 1 && version !== 2 && version !== SCENARIO_SCHEMA_VERSION) {
     throw new Error(`Unsupported scenario version: ${String(raw.version)}.`);
   }
 
@@ -210,7 +212,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
     stepGroups = raw.stepGroups;
   }
 
-  if (normalizedTemplate.length === 0) {
+  if (version !== SCENARIO_SCHEMA_VERSION && normalizedTemplate.length === 0) {
     throw new Error("Scenario payload has invalid template data.");
   }
 
@@ -229,7 +231,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
   ensureValidScenarioReferences(normalizedTemplate, stepGroups, runs);
 
   return {
-    version: 3,
+    version: SCENARIO_SCHEMA_VERSION,
     template: normalizedTemplate,
     stepGroups,
     runs,

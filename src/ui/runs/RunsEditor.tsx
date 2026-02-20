@@ -1,5 +1,8 @@
+import { useMemo, useState } from "react";
 import { validateRun } from "../../domain/validation";
 import type { Run } from "../../domain/types";
+import ConfirmDialog from "../common/ConfirmDialog";
+import IntegerInput from "../common/IntegerInput";
 
 interface RunsEditorProps {
   runs: Run[];
@@ -19,6 +22,10 @@ function nextRunId(runs: Run[]): string {
 }
 
 function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
+  const [pendingDeleteRunId, setPendingDeleteRunId] = useState<string | null>(null);
+
+  const pendingRun = useMemo(() => runs.find((run) => run.id === pendingDeleteRunId) ?? null, [pendingDeleteRunId, runs]);
+
   const updateRun = (index: number, updatedRun: Run) => {
     const nextRuns = runs.map((run, currentIndex) => (currentIndex === index ? updatedRun : run));
     onChange(nextRuns);
@@ -36,8 +43,13 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
     ]);
   };
 
-  const deleteRun = (index: number) => {
-    onChange(runs.filter((_, currentIndex) => currentIndex !== index));
+  const confirmDeleteRun = () => {
+    if (!pendingDeleteRunId) {
+      return;
+    }
+
+    onChange(runs.filter((run) => run.id !== pendingDeleteRunId));
+    setPendingDeleteRunId(null);
   };
 
   return (
@@ -76,17 +88,14 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                     />
                   </td>
                   <td>
-                    <input
-                      aria-label={`Run start ${index + 1}`}
+                    <IntegerInput
+                      ariaLabel={`Run start ${index + 1}`}
                       min={0}
-                      step={1}
-                      type="number"
                       value={run.startMin}
-                      onChange={(event) => {
-                        const parsedValue = Number.parseInt(event.target.value, 10);
+                      onCommit={(startMinValue) => {
                         updateRun(index, {
                           ...run,
-                          startMin: Number.isNaN(parsedValue) ? 0 : parsedValue,
+                          startMin: startMinValue,
                         });
                       }}
                     />
@@ -99,19 +108,19 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                         disabled={runs.length <= 1}
                         title={`Delete run ${run.label}`}
                         type="button"
-                        onClick={() => deleteRun(index)}
+                        onClick={() => setPendingDeleteRunId(run.id)}
                       >
                         <span aria-hidden="true" className="icon-glyph">
                           ×
                         </span>
                       </button>
-                    {errors.length > 0 ? (
-                      <ul className="inline-errors run-inline-errors">
-                        {errors.map((error) => (
-                          <li key={error}>{error}</li>
-                        ))}
-                      </ul>
-                    ) : null}
+                      {errors.length > 0 ? (
+                        <ul className="inline-errors run-inline-errors">
+                          {errors.map((error) => (
+                            <li key={error}>{error}</li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -120,6 +129,16 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        cancelLabel="Cancel"
+        confirmLabel="Delete run"
+        isOpen={Boolean(pendingDeleteRunId)}
+        message={`Delete ${pendingRun?.label ?? "this run"}?`}
+        title="Delete run?"
+        onCancel={() => setPendingDeleteRunId(null)}
+        onConfirm={confirmDeleteRun}
+      />
     </section>
   );
 }

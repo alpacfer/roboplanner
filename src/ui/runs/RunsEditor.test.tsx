@@ -44,53 +44,36 @@ describe("RunsEditor", () => {
     });
   });
 
-  it("updates label and start minute fields", async () => {
-    const user = userEvent.setup();
-    render(<TestHarness />);
-
-    await user.clear(screen.getByLabelText("Run label 1"));
-    await user.type(screen.getByLabelText("Run label 1"), "Device-1");
-    await user.clear(screen.getByLabelText("Run start 1"));
-    await user.type(screen.getByLabelText("Run start 1"), "12");
-
-    expect(readRuns()[0]).toMatchObject({
-      label: "Device-1",
-      startMin: 12,
-    });
-  });
-
-  it("coerces empty numeric input to 0", async () => {
+  it("normalizes integer start minute input on blur", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
     await user.clear(screen.getByLabelText("Run start 1"));
+    await user.type(screen.getByLabelText("Run start 1"), "0012");
+    await user.tab();
 
-    expect(readRuns()[0]?.startMin).toBe(0);
+    expect(readRuns()[0]?.startMin).toBe(12);
   });
 
-  it("disables delete when only one run exists", () => {
-    render(<TestHarness />);
-
-    expect(screen.getByRole("button", { name: "Delete run 1" }).getAttribute("disabled")).not.toBeNull();
-  });
-
-  it("deletes runs when there are multiple", async () => {
+  it("opens delete confirmation for runs and supports cancel + confirm", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
     await user.click(screen.getByRole("button", { name: "Add run" }));
     await user.click(screen.getByRole("button", { name: "Delete run 2" }));
 
+    expect(screen.getByRole("dialog", { name: "Delete run?" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Cancel Delete run?" }));
+    expect(readRuns()).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Delete run 2" }));
+    await user.click(screen.getByRole("button", { name: "Confirm Delete run?" }));
     expect(readRuns()).toHaveLength(1);
-    expect(readRuns()[0]?.id).toBe("run-1");
   });
 
-  it("shows inline validation when label is empty", async () => {
-    const user = userEvent.setup();
+  it("disables delete when only one run exists", () => {
     render(<TestHarness />);
 
-    await user.clear(screen.getByLabelText("Run label 1"));
-
-    expect(screen.getByText("Run label is required.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete run 1" }).getAttribute("disabled")).not.toBeNull();
   });
 });

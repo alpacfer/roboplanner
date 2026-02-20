@@ -1,17 +1,27 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
 import type { PlanSettings, Run, Segment, SimulationMetrics, Step, StepGroup } from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
+import { SCENARIO_SCHEMA_VERSION } from "./storage/schema";
 import MetricsPanel from "./ui/metrics/MetricsPanel";
-import ImportExportPanel from "./ui/portability/ImportExportPanel";
+import IntegerInput from "./ui/common/IntegerInput";
+import { exportScenarioAsDownload, importScenarioFromFile } from "./ui/portability/portability";
 import RunsEditor from "./ui/runs/RunsEditor";
 import TemplateEditor from "./ui/template/TemplateEditor";
-import TimelineSvg, { TIMELINE_LEFT_PAD, TIMELINE_RIGHT_PAD } from "./ui/timeline/TimelineSvg";
+import TimelineSvg, {
+  TIMELINE_LEFT_PAD,
+  TIMELINE_RIGHT_PAD,
+} from "./ui/timeline/TimelineSvg";
 
 const MIN_PX_PER_MIN = 0.1;
 const MAX_PX_PER_MIN = 40;
+const TIMELINE_TOP_PAD = 18;
+const TIMELINE_AXIS_HEIGHT = 26;
+const TIMELINE_LANE_HEIGHT = 44;
+const TIMELINE_LANE_GAP = 10;
+const TIMELINE_BOTTOM_PAD = 18;
 
 function assignDefaultSequenceColorsInOrder(stepGroups: StepGroup[]): StepGroup[] {
   return stepGroups.map((group, index) => ({
@@ -38,7 +48,9 @@ function App() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
+  const [portabilityStatus, setPortabilityStatus] = useState("");
   const timelineBoxRef = useRef<HTMLDivElement | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const simulate = () => {
     const result = simulateDES({
@@ -73,7 +85,59 @@ function App() {
     setMetrics(null);
   };
 
+  const handleExportClick = () => {
+    try {
+      const fileName = exportScenarioAsDownload({
+        template,
+        stepGroups,
+        runs,
+        settings,
+      });
+      setPortabilityStatus(`Scenario downloaded (${fileName}).`);
+    } catch {
+      setPortabilityStatus("Export failed.");
+    }
+  };
+
+  const handleImportClick = () => {
+    importFileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setPortabilityStatus("No file selected.");
+      return;
+    }
+
+    try {
+      const imported = await importScenarioFromFile({
+        file,
+        runs,
+        settings,
+      });
+
+      applyImportedScenario({
+        template: imported.template,
+        stepGroups: imported.stepGroups,
+        runs: imported.runs,
+        settings: imported.settings,
+      });
+      setPortabilityStatus(imported.statusMessage);
+    } catch (error) {
+      setPortabilityStatus(error instanceof Error ? error.message : "Import failed.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const visibleSegments = showWaits ? segments : segments.filter((segment) => segment.kind !== "wait");
+  const timelineHeightPx =
+    TIMELINE_TOP_PAD +
+    TIMELINE_AXIS_HEIGHT +
+    runs.length * (TIMELINE_LANE_HEIGHT + TIMELINE_LANE_GAP) +
+    TIMELINE_BOTTOM_PAD;
   const stepGroupsById = useMemo(
     () => Object.fromEntries(stepGroups.map((group) => [group.id, group])),
     [stepGroups],
@@ -81,10 +145,7 @@ function App() {
   const stepGroupNamesByStepId = useMemo(
     () =>
       Object.fromEntries(
-        template.map((step) => [
-          step.id,
-          step.groupId ? stepGroupsById[step.groupId]?.name : undefined,
-        ]),
+        template.map((step) => [step.id, step.groupId ? stepGroupsById[step.groupId]?.name : undefined]),
       ),
     [template, stepGroupsById],
   );
@@ -132,28 +193,31 @@ function App() {
           <p className="app-eyebrow">RoboPlanner</p>
           <h1>Test Timeline Planner</h1>
         </div>
-        <p className="plan-pill">Current plan: {initialPlan.name}</p>
+        <p className="plan-pill">Version {SCENARIO_SCHEMA_VERSION}</p>
       </header>
 
       <div className="workspace-grid">
         <section className="workspace-main" data-testid="workspace-main">
-          <div className="panel-card utility-card utility-portability-card" data-testid="utility-portability-card">
-            <ImportExportPanel
-              settings={settings}
-              template={template}
-              stepGroups={stepGroups}
-              runs={runs}
-              onImport={applyImportedScenario}
-            />
-          </div>
           <div className="panel-card">
             <TemplateEditor
-              steps={template}
+              portabilityStatus={portabilityStatus}
               stepGroups={stepGroups}
+              steps={template}
               onChange={({ steps, stepGroups: nextStepGroups }) => {
                 setTemplate(steps);
                 setStepGroups(nextStepGroups);
               }}
+              onExportClick={handleExportClick}
+              onImportClick={handleImportClick}
+            />
+            <input
+              ref={importFileInputRef}
+              accept="application/json,.json,text/html,.html,.htm,text/plain"
+              aria-label="Scenario import file"
+              className="portability-file-input"
+              data-testid="scenario-file-input"
+              type="file"
+              onChange={handleImportFile}
             />
           </div>
         </section>
@@ -162,27 +226,46 @@ function App() {
           <div className="panel-card utility-card">
             <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
           </div>
+
           <section className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
             <h2>Simulation Settings</h2>
             <div className="settings-fields">
               <label className="field-row" htmlFor="operator-capacity">
                 <span>Operator capacity</span>
-                <input
-                  id="operator-capacity"
+                <IntegerInput
+                  ariaLabel="Operator capacity"
                   min={1}
-                  step={1}
-                  type="number"
                   value={settings.operatorCapacity}
-                  onChange={(event) => {
-                    const value = Number.parseInt(event.target.value, 10);
+                  onCommit={(capacity) => {
                     setSettings((prev) => ({
                       ...prev,
-                      operatorCapacity: Number.isNaN(value) ? 1 : Math.max(1, value),
+                      operatorCapacity: Math.max(1, capacity),
                     }));
                   }}
                 />
               </label>
-              <label className="checkbox-label" htmlFor="show-waits">
+            </div>
+
+            <button
+              className="simulate-button"
+              data-testid="simulate-button"
+              disabled={template.length === 0}
+              type="button"
+              onClick={simulate}
+            >
+              Simulate
+            </button>
+          </section>
+        </aside>
+
+        <section className="panel-card timeline-panel" data-testid="timeline-panel">
+          <div className="timeline-panel-header">
+            <div className="timeline-panel-title">
+              <h2>Timeline</h2>
+              <p>{visibleSegments.length} segments visible</p>
+            </div>
+            <div className="viewport-actions" data-testid="timeline-controls">
+              <label className="checkbox-label timeline-checkbox-label" htmlFor="show-waits">
                 <input
                   checked={showWaits}
                   id="show-waits"
@@ -191,48 +274,39 @@ function App() {
                 />
                 Show wait segments
               </label>
+              <button type="button" onClick={() => zoom(1.25)}>
+                Zoom in
+              </button>
+              <button type="button" onClick={() => zoom(0.8)}>
+                Zoom out
+              </button>
+              <button type="button" onClick={fitToWindow}>
+                Fit
+              </button>
             </div>
-            <button className="simulate-button" data-testid="simulate-button" type="button" onClick={simulate}>
-              Simulate
-            </button>
-          </section>
-
-          <div className="panel-card utility-card utility-metrics-card" data-testid="utility-metrics-card">
-            <MetricsPanel metrics={metrics} />
           </div>
-        </aside>
+          <div
+            ref={timelineBoxRef}
+            className="timeline-box"
+            data-testid="timeline-box"
+            style={{ height: `${timelineHeightPx}px` }}
+          >
+            <TimelineSvg
+              pxPerMin={pxPerMin}
+              runs={runs}
+              segments={visibleSegments}
+              stepColorsById={stepColorsById}
+              stepGroupNamesByStepId={stepGroupNamesByStepId}
+              viewStartMin={timelineStartMin}
+              viewEndMin={timelineEndMin}
+            />
+          </div>
+        </section>
+
+        <div className="panel-card utility-card utility-metrics-card" data-testid="utility-metrics-card">
+          <MetricsPanel metrics={metrics} />
+        </div>
       </div>
-
-      <section className="panel-card timeline-panel" data-testid="timeline-panel">
-        <div className="timeline-panel-header">
-          <div className="timeline-panel-title">
-            <h2>Timeline</h2>
-            <p>{visibleSegments.length} segments visible</p>
-          </div>
-          <div className="viewport-actions" data-testid="timeline-controls">
-            <button type="button" onClick={() => zoom(1.25)}>
-              Zoom in
-            </button>
-            <button type="button" onClick={() => zoom(0.8)}>
-              Zoom out
-            </button>
-            <button type="button" onClick={fitToWindow}>
-              Fit
-            </button>
-          </div>
-        </div>
-        <div ref={timelineBoxRef} className="timeline-box" data-testid="timeline-box">
-          <TimelineSvg
-            pxPerMin={pxPerMin}
-            runs={runs}
-            segments={visibleSegments}
-            stepColorsById={stepColorsById}
-            stepGroupNamesByStepId={stepGroupNamesByStepId}
-            viewStartMin={timelineStartMin}
-            viewEndMin={timelineEndMin}
-          />
-        </div>
-      </section>
 
       <section className="panel-card debug-panel">
         <button
