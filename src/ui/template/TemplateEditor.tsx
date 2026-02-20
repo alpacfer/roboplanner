@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
@@ -274,7 +275,7 @@ function StepItem({
 
           <label className="field-row operator-field">
             <span>Operator involvement</span>
-            <select
+            <NativeSelect
               aria-label={`Operator involvement ${step.id}`}
               className="operator-select"
               value={step.operatorInvolvement}
@@ -286,11 +287,11 @@ function StepItem({
               }
             >
               {OPERATOR_INVOLVEMENT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <NativeSelectOption key={option.value} value={option.value}>
                   {option.label}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </label>
 
           {!isGrouped ? (

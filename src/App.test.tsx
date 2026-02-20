@@ -50,6 +50,31 @@ describe("App", () => {
     expect(screen.getByText(`Version ${SCENARIO_SCHEMA_VERSION}`)).toBeTruthy();
   });
 
+  it("keeps legacy portability and modal wrapper classes out of key panels", () => {
+    render(<App />);
+
+    const bannedLegacyClasses = [
+      "portability-panel",
+      "portability-layout",
+      "portability-actions",
+      "portability-info",
+      "confirm-modal-overlay",
+    ];
+    const keyPanels = [
+      screen.getByTestId("workspace-main"),
+      screen.getByTestId("workspace-side"),
+      screen.getByTestId("timeline-panel"),
+      screen.getByTestId("utility-settings-card"),
+      screen.getByTestId("utility-metrics-card"),
+    ];
+
+    for (const panel of keyPanels) {
+      for (const className of bannedLegacyClasses) {
+        expect(panel.querySelector(`.${className}`)).toBeNull();
+      }
+    }
+  });
+
   it("disables simulate when no steps and enables after adding a step", async () => {
     const user = userEvent.setup();
     render(<App />);

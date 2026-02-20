@@ -774,16 +774,6 @@ input[type="checkbox"] {
   padding-left: 1.1rem;
 }
 
-.confirm-modal-overlay {
-  align-items: center;
-  background: rgba(15, 23, 42, 0.42);
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  position: fixed;
-  z-index: 120;
-}
-
 .confirm-modal {
   background: #ffffff;
   border: 1px solid var(--border-strong);
@@ -902,31 +892,6 @@ input[type="checkbox"] {
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0.12rem 0 0;
-}
-
-.portability-panel {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.portability-layout {
-  align-items: start;
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
-.portability-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.portability-info {
-  color: var(--text-muted);
-  display: grid;
-  gap: 0.3rem;
-  min-width: 0;
 }
 
 .portability-file-input {
@@ -1156,10 +1121,6 @@ pre {
     align-items: start;
     flex-direction: column;
     gap: var(--space-2);
-  }
-
-  .portability-layout {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .template-editor-header {

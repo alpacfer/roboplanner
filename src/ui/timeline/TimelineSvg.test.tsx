@@ -44,6 +44,16 @@ const segments: Segment[] = [
 ];
 
 describe("TimelineSvg", () => {
+  it("preserves critical timeline hooks and axis-label class", () => {
+    render(<TimelineSvg pxPerMin={2} runs={runs} segments={segments} />);
+
+    expect(screen.getByTestId("timeline-svg")).toBeTruthy();
+    expect(screen.getByTestId("timeline-axis")).toBeTruthy();
+    expect(screen.getAllByTestId("timeline-lane")).toHaveLength(1);
+    expect(screen.getAllByTestId("timeline-rect")).toHaveLength(3);
+    expect(document.querySelectorAll(".axis-label").length).toBeGreaterThan(0);
+  });
+
   it("renders 3 rects for R1", () => {
     render(<TimelineSvg pxPerMin={2} runs={runs} segments={segments} />);
     expect(screen.getAllByTestId("timeline-rect")).toHaveLength(3);

@@ -159,4 +159,11 @@ describe("TemplateEditor", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByLabelText("Sequence color menu Sequence 1")).toBeNull();
   });
+
+  it("keeps operator involvement as a native select", () => {
+    render(<TestHarness />);
+
+    const involvement = screen.getByLabelText("Operator involvement step-1");
+    expect(involvement.tagName).toBe("SELECT");
+  });
 });
