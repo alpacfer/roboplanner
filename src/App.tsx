@@ -1,4 +1,8 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
 import type { PlanSettings, Run, Segment, SimulationMetrics, Step, StepGroup } from "./domain/types";
@@ -187,18 +191,18 @@ function App() {
   };
 
   return (
-    <main className="app-shell">
-      <header className="panel-card app-hero">
+    <main className="app-shell mx-auto grid max-w-[1350px] gap-5">
+      <Card className="panel-card app-hero">
         <div className="app-hero-content">
           <p className="app-eyebrow">RoboPlanner</p>
           <h1>Test Timeline Planner</h1>
         </div>
         <p className="plan-pill">Version {SCENARIO_SCHEMA_VERSION}</p>
-      </header>
+      </Card>
 
-      <div className="workspace-grid">
+      <div className="workspace-grid grid gap-5">
         <section className="workspace-main" data-testid="workspace-main">
-          <div className="panel-card">
+          <Card className="panel-card">
             <TemplateEditor
               portabilityStatus={portabilityStatus}
               stepGroups={stepGroups}
@@ -219,70 +223,74 @@ function App() {
               type="file"
               onChange={handleImportFile}
             />
-          </div>
+          </Card>
         </section>
 
         <aside className="workspace-side" data-testid="workspace-side">
-          <div className="panel-card utility-card">
+          <Card className="panel-card utility-card">
             <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
-          </div>
+          </Card>
 
-          <section className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
-            <h2>Simulation Settings</h2>
-            <div className="settings-fields">
-              <label className="field-row" htmlFor="operator-capacity">
-                <span>Operator capacity</span>
-                <IntegerInput
-                  ariaLabel="Operator capacity"
-                  min={1}
-                  value={settings.operatorCapacity}
-                  onCommit={(capacity) => {
-                    setSettings((prev) => ({
-                      ...prev,
-                      operatorCapacity: Math.max(1, capacity),
-                    }));
-                  }}
-                />
-              </label>
-            </div>
+          <Card className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
+            <CardHeader className="pb-2">
+              <CardTitle>Simulation Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="settings-fields">
+                <label className="field-row" htmlFor="operator-capacity">
+                  <span>Operator capacity</span>
+                  <IntegerInput
+                    ariaLabel="Operator capacity"
+                    min={1}
+                    value={settings.operatorCapacity}
+                    onCommit={(capacity) => {
+                      setSettings((prev) => ({
+                        ...prev,
+                        operatorCapacity: Math.max(1, capacity),
+                      }));
+                    }}
+                  />
+                </label>
+              </div>
 
-            <button
-              className="simulate-button"
-              data-testid="simulate-button"
-              disabled={template.length === 0}
-              type="button"
-              onClick={simulate}
-            >
-              Simulate
-            </button>
-          </section>
+              <Button
+                className="simulate-button"
+                data-testid="simulate-button"
+                disabled={template.length === 0}
+                type="button"
+                onClick={simulate}
+              >
+                Simulate
+              </Button>
+            </CardContent>
+          </Card>
         </aside>
 
-        <section className="panel-card timeline-panel" data-testid="timeline-panel">
+        <Card className="panel-card timeline-panel" data-testid="timeline-panel">
           <div className="timeline-panel-header">
             <div className="timeline-panel-title">
               <h2>Timeline</h2>
               <p>{visibleSegments.length} segments visible</p>
             </div>
             <div className="viewport-actions" data-testid="timeline-controls">
-              <label className="checkbox-label timeline-checkbox-label" htmlFor="show-waits">
-                <input
+              <Label className="checkbox-label timeline-checkbox-label" htmlFor="show-waits">
+                <Checkbox
+                  aria-label="Show wait segments"
                   checked={showWaits}
                   id="show-waits"
-                  type="checkbox"
-                  onChange={(event) => setShowWaits(event.target.checked)}
+                  onCheckedChange={(checked) => setShowWaits(checked === true)}
                 />
                 Show wait segments
-              </label>
-              <button type="button" onClick={() => zoom(1.25)}>
+              </Label>
+              <Button type="button" variant="outline" onClick={() => zoom(1.25)}>
                 Zoom in
-              </button>
-              <button type="button" onClick={() => zoom(0.8)}>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => zoom(0.8)}>
                 Zoom out
-              </button>
-              <button type="button" onClick={fitToWindow}>
+              </Button>
+              <Button type="button" variant="outline" onClick={fitToWindow}>
                 Fit
-              </button>
+              </Button>
             </div>
           </div>
           <div
@@ -301,24 +309,25 @@ function App() {
               viewEndMin={timelineEndMin}
             />
           </div>
-        </section>
+        </Card>
 
-        <div className="panel-card utility-card utility-metrics-card" data-testid="utility-metrics-card">
+        <div className="utility-card utility-metrics-card" data-testid="utility-metrics-card">
           <MetricsPanel metrics={metrics} />
         </div>
       </div>
 
-      <section className="panel-card debug-panel">
-        <button
+      <Card className="panel-card debug-panel">
+        <Button
           aria-controls="developer-tools-body"
           aria-expanded={isDebugDrawerOpen}
           className="debug-toggle"
           data-testid="debug-drawer-toggle"
           type="button"
+          variant="ghost"
           onClick={() => setIsDebugDrawerOpen((current) => !current)}
         >
           {isDebugDrawerOpen ? "Hide developer tools" : "Show developer tools"}
-        </button>
+        </Button>
         <div
           id="developer-tools-body"
           className={`debug-drawer-content ${isDebugDrawerOpen ? "is-open" : ""}`}
@@ -335,7 +344,7 @@ function App() {
             </section>
           </div>
         </div>
-      </section>
+      </Card>
     </main>
   );
 }
