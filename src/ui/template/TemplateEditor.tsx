@@ -1,7 +1,8 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useMemo, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
 import type { OperatorInvolvement, Step, StepGroup } from "../../domain/types";
@@ -174,24 +175,6 @@ function StepItem({
 }: StepItemProps) {
   const [isStepColorMenuOpen, setIsStepColorMenuOpen] = useState(false);
   const stepColor = normalizeStepColor(step.color);
-  const stepColorPickerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isStepColorMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!stepColorPickerRef.current?.contains(event.target as Node)) {
-        setIsStepColorMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isStepColorMenuOpen]);
 
   return (
     <article
@@ -216,18 +199,24 @@ function StepItem({
           {!isGrouped ? (
             <label className="field-row step-color-field">
               <span>Step color</span>
-              <div ref={stepColorPickerRef} className="group-color-picker">
-                <button
-                  aria-expanded={isStepColorMenuOpen}
-                  aria-label={`Open step color menu ${step.id}`}
-                  className="group-color-trigger"
-                  style={{ backgroundColor: stepColor }}
-                  title={`Open step color menu for ${step.name}`}
-                  type="button"
-                  onClick={() => setIsStepColorMenuOpen((current) => !current)}
-                />
-                {isStepColorMenuOpen ? (
-                  <div aria-label={`Step color menu ${step.id}`} className="group-color-menu" role="menu">
+              <Popover open={isStepColorMenuOpen} onOpenChange={setIsStepColorMenuOpen}>
+                <div className="group-color-picker">
+                  <PopoverTrigger asChild>
+                    <button
+                      aria-expanded={isStepColorMenuOpen}
+                      aria-label={`Open step color menu ${step.id}`}
+                      className="group-color-trigger"
+                      style={{ backgroundColor: stepColor }}
+                      title={`Open step color menu for ${step.name}`}
+                      type="button"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    aria-label={`Step color menu ${step.id}`}
+                    className="group-color-menu w-auto p-2"
+                    role="menu"
+                  >
                     <input
                       aria-label={`Step color ${step.id}`}
                       type="color"
@@ -257,9 +246,9 @@ function StepItem({
                         />
                       ))}
                     </div>
-                  </div>
-                ) : null}
-              </div>
+                  </PopoverContent>
+                </div>
+              </Popover>
             </label>
           ) : null}
 
@@ -669,28 +658,6 @@ function TemplateEditor({
     setCollapsedGroups(Object.fromEntries(stepGroups.map((group) => [group.id, true])));
   };
 
-  useEffect(() => {
-    if (!openGroupColorMenuId) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      const openPicker = document.querySelector(
-        `[data-group-color-picker-id="${openGroupColorMenuId}"]`,
-      ) as HTMLElement | null;
-
-      if (!openPicker?.contains(target)) {
-        setOpenGroupColorMenuId(null);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [openGroupColorMenuId]);
-
   return (
     <section className="template-editor">
       <div className="template-editor-header">
@@ -816,17 +783,26 @@ function TemplateEditor({
 
                     <label className="field-row group-color-field">
                       <span>Sequence color</span>
-                      <div className="group-color-picker" data-group-color-picker-id={group.id}>
-                        <button
-                          aria-expanded={openGroupColorMenuId === group.id}
-                          aria-label={`Open sequence color menu ${group.name}`}
-                          className="group-color-trigger"
-                          style={{ backgroundColor: groupColor }}
-                          type="button"
-                          onClick={() => setOpenGroupColorMenuId((current) => (current === group.id ? null : group.id))}
-                        />
-                        {openGroupColorMenuId === group.id ? (
-                          <div aria-label={`Sequence color menu ${group.name}`} className="group-color-menu" role="menu">
+                      <Popover
+                        open={openGroupColorMenuId === group.id}
+                        onOpenChange={(open) => setOpenGroupColorMenuId(open ? group.id : null)}
+                      >
+                        <div className="group-color-picker" data-group-color-picker-id={group.id}>
+                          <PopoverTrigger asChild>
+                            <button
+                              aria-expanded={openGroupColorMenuId === group.id}
+                              aria-label={`Open sequence color menu ${group.name}`}
+                              className="group-color-trigger"
+                              style={{ backgroundColor: groupColor }}
+                              type="button"
+                            />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            aria-label={`Sequence color menu ${group.name}`}
+                            className="group-color-menu w-auto p-2"
+                            role="menu"
+                          >
                             <input
                               aria-label={`Sequence color ${group.name}`}
                               type="color"
@@ -856,9 +832,9 @@ function TemplateEditor({
                                 />
                               ))}
                             </div>
-                          </div>
-                        ) : null}
-                      </div>
+                          </PopoverContent>
+                        </div>
+                      </Popover>
                     </label>
 
                     {errorCount > 0 ? <Badge className="group-error-pill has-errors">{errorCount} issues</Badge> : null}

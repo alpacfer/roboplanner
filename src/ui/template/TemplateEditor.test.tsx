@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -128,5 +128,35 @@ describe("TemplateEditor", () => {
 
     await user.clear(screen.getByLabelText("Sequence name Sequence 1"));
     expect(screen.getByText("1 issues")).toBeTruthy();
+  });
+
+  it("opens step color popover, updates color, and closes on outside click", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Open step color menu step-1" }));
+    expect(screen.getByLabelText("Step color menu step-1")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Step color step-1"), { target: { value: "#112233" } });
+    expect(readSteps()[0]?.color).toBe("#112233");
+
+    await user.click(screen.getByText("Template Steps"));
+    expect(screen.queryByLabelText("Step color menu step-1")).toBeNull();
+  });
+
+  it("opens sequence color popover, updates color, and closes on escape", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add sequence at top level position 1" }));
+    await user.click(screen.getByRole("button", { name: "Open sequence color menu Sequence 1" }));
+    expect(screen.getByLabelText("Sequence color menu Sequence 1")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Sequence color Sequence 1"), { target: { value: "#445566" } });
+    expect(readGroups()[0]?.color).toBe("#445566");
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByLabelText("Sequence color menu Sequence 1")).toBeNull();
   });
 });
