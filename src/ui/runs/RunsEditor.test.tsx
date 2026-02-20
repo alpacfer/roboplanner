@@ -76,4 +76,17 @@ describe("RunsEditor", () => {
 
     expect(screen.getByRole("button", { name: "Delete run 1" }).getAttribute("disabled")).not.toBeNull();
   });
+
+  it("keeps table semantics and stable headers after migration", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Label" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Start (min)" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Add run" }));
+    expect(screen.getAllByTestId("run-row")).toHaveLength(2);
+  });
 });

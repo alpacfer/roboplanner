@@ -1,3 +1,4 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SimulationMetrics } from "../../domain/types";
 
 interface MetricsPanelProps {
@@ -25,27 +26,31 @@ function MetricsPanel({ metrics }: MetricsPanelProps) {
   const totalWaitingMin = metrics?.totalWaitingMin ?? 0;
 
   return (
-    <section className="metrics-panel">
-      <h2>Metrics</h2>
-      <dl className="metrics-grid">
-        <div className="metric-tile">
-          <dt>Makespan</dt>
-          <dd data-testid="metric-makespan">{formatDurationMinutes(makespan)}</dd>
-        </div>
-        <div className="metric-tile">
-          <dt>Operator Busy Time</dt>
-          <dd data-testid="metric-operator-busy">{formatDurationMinutes(operatorBusyMin)}</dd>
-        </div>
-        <div className="metric-tile">
-          <dt>Operator Utilization</dt>
-          <dd data-testid="metric-operator-utilization">{formatUtilizationPercent(operatorUtilization)}</dd>
-        </div>
-        <div className="metric-tile">
-          <dt>Total Waiting Time</dt>
-          <dd data-testid="metric-total-waiting">{formatDurationMinutes(totalWaitingMin)}</dd>
-        </div>
-      </dl>
-    </section>
+    <Card className="metrics-panel">
+      <CardHeader className="pb-2">
+        <CardTitle>Metrics</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <dl className="metrics-grid">
+          <div className="metric-tile">
+            <dt>Makespan</dt>
+            <dd data-testid="metric-makespan">{formatDurationMinutes(makespan)}</dd>
+          </div>
+          <div className="metric-tile">
+            <dt>Operator Busy Time</dt>
+            <dd data-testid="metric-operator-busy">{formatDurationMinutes(operatorBusyMin)}</dd>
+          </div>
+          <div className="metric-tile">
+            <dt>Operator Utilization</dt>
+            <dd data-testid="metric-operator-utilization">{formatUtilizationPercent(operatorUtilization)}</dd>
+          </div>
+          <div className="metric-tile">
+            <dt>Total Waiting Time</dt>
+            <dd data-testid="metric-total-waiting">{formatDurationMinutes(totalWaitingMin)}</dd>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
   );
 }
 

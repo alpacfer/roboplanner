@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { validateRun } from "../../domain/validation";
 import type { Run } from "../../domain/types";
 import ConfirmDialog from "../common/ConfirmDialog";
@@ -56,28 +58,36 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
     <section className="runs-editor">
       <div className="runs-editor-header">
         <h2>Runs</h2>
-        <button aria-label="Add run" className="icon-button" title="Add run" type="button" onClick={addRun}>
+        <Button
+          aria-label="Add run"
+          className="icon-button"
+          size="icon"
+          title="Add run"
+          type="button"
+          variant="ghost"
+          onClick={addRun}
+        >
           <span aria-hidden="true" className="icon-glyph">
             +
           </span>
-        </button>
+        </Button>
       </div>
       <div className="table-wrap">
-        <table className="runs-table">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>Start (min)</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="runs-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Label</TableHead>
+              <TableHead>Start (min)</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {runs.map((run, index) => {
               const errors = validateRun(run);
 
               return (
-                <tr data-testid="run-row" key={run.id}>
-                  <td>
+                <TableRow data-testid="run-row" key={run.id}>
+                  <TableCell>
                     <input
                       aria-label={`Run label ${index + 1}`}
                       type="text"
@@ -86,8 +96,8 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                         updateRun(index, { ...run, label: event.target.value });
                       }}
                     />
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
                     <IntegerInput
                       ariaLabel={`Run start ${index + 1}`}
                       min={0}
@@ -99,21 +109,23 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                         });
                       }}
                     />
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
                     <div className="run-actions-cell">
-                      <button
+                      <Button
                         aria-label={`Delete run ${index + 1}`}
                         className="danger-ghost-button icon-button"
                         disabled={runs.length <= 1}
+                        size="icon"
                         title={`Delete run ${run.label}`}
                         type="button"
+                        variant="destructive"
                         onClick={() => setPendingDeleteRunId(run.id)}
                       >
                         <span aria-hidden="true" className="icon-glyph">
                           ×
                         </span>
-                      </button>
+                      </Button>
                       {errors.length > 0 ? (
                         <ul className="inline-errors run-inline-errors">
                           {errors.map((error) => (
@@ -122,12 +134,12 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                         </ul>
                       ) : null}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <ConfirmDialog
