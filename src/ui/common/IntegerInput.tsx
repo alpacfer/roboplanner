@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
 
 interface IntegerInputProps {
   value: number;
@@ -46,7 +47,7 @@ function IntegerInput({ value, min, max, className, ariaLabel, onCommit }: Integ
   };
 
   return (
-    <input
+    <Input
       aria-label={ariaLabel}
       className={className}
       inputMode="numeric"

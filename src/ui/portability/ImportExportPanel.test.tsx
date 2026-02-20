@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../storage/schema";
@@ -164,7 +164,9 @@ describe("ImportExportPanel", () => {
       new File([fixture], "setup_documentation.html", { type: "text/html" }),
     );
 
-    expect(onImport).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onImport).toHaveBeenCalledTimes(1);
+    });
     const payload = onImport.mock.calls[0][0] as {
       template: Array<{
         id: string;
