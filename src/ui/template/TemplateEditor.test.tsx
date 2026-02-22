@@ -116,6 +116,22 @@ describe("TemplateEditor", () => {
     expect(readSteps().every((step) => step.groupId === null)).toBe(true);
   });
 
+  it("delete all removes all steps and sequences", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add sequence at top level position 1" }));
+    await user.hover(screen.getByTestId("top-level-insert-2"));
+    await user.click(screen.getByRole("button", { name: "Add step at top level position 3" }));
+
+    await user.click(screen.getByRole("button", { name: "Delete all steps and sequences" }));
+    await user.click(screen.getByRole("button", { name: "Confirm Delete all steps and sequences?" }));
+
+    expect(readGroups()).toHaveLength(0);
+    expect(readSteps()).toHaveLength(0);
+  });
+
   it("shows issue status only when issues exist", async () => {
     const user = userEvent.setup();
     render(<TestHarness />);
@@ -160,10 +176,10 @@ describe("TemplateEditor", () => {
     expect(screen.queryByLabelText("Sequence color menu Sequence 1")).toBeNull();
   });
 
-  it("keeps operator involvement as a native select", () => {
+  it("renders operator involvement as a combobox input", () => {
     render(<TestHarness />);
 
     const involvement = screen.getByLabelText("Operator involvement step-1");
-    expect(involvement.tagName).toBe("SELECT");
+    expect(involvement.tagName).toBe("INPUT");
   });
 });

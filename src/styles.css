@@ -106,8 +106,9 @@ h1 {
 }
 
 h2 {
-  font-size: 1.1rem;
+  font-size: 1.02rem;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 h3 {
@@ -116,8 +117,15 @@ h3 {
 }
 
 p {
-  font-size: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
   margin: 0;
+}
+
+[data-slot="button"] {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .icon-button {
@@ -126,6 +134,16 @@ p {
   justify-content: center;
   min-width: 2.1rem;
   padding: 0.5rem;
+}
+
+.delete-action-button {
+  color: color-mix(in srgb, var(--destructive) 68%, var(--text));
+}
+
+.delete-action-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--destructive) 18%, white);
+  border-color: color-mix(in srgb, var(--destructive) 42%, var(--border));
+  color: color-mix(in srgb, var(--destructive) 78%, #000);
 }
 
 .icon-glyph {
@@ -148,6 +166,23 @@ p {
   padding: var(--space-5);
   position: relative;
   animation: panel-enter var(--motion-base) ease both;
+}
+
+.panel-card h2,
+.panel-card [data-slot="card-title"] {
+  color: var(--text);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.panel-card p,
+.panel-card [data-slot="card-description"] {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .app-hero {
@@ -216,18 +251,39 @@ p {
 
 .settings-panel {
   display: grid;
+  gap: var(--space-2);
+}
+
+.settings-content {
+  display: grid;
   gap: var(--space-3);
-  grid-template-rows: auto 1fr auto;
+  padding-top: 0;
 }
 
 .settings-fields {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: 0;
 }
 
+.settings-field {
+  max-width: 18rem;
+}
+
+.settings-input {
+  min-width: 4.5ch;
+  text-align: center;
+  width: 4.5ch;
+}
+
+.settings-actions {
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-3);
+}
+
 .simulate-button {
-  justify-self: start;
   min-width: 132px;
 }
 
@@ -265,8 +321,8 @@ p {
 
 .timeline-panel-title p {
   color: var(--text-muted);
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 500;
 }
 
 .timeline-panel .viewport-actions {
@@ -276,6 +332,10 @@ p {
 
 .timeline-checkbox-label {
   margin-right: 0.2rem;
+}
+
+.timeline-zoom-group {
+  flex-shrink: 0;
 }
 
 .template-editor {
@@ -304,7 +364,7 @@ p {
 
 .template-editor-title-group p {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 500;
 }
 
@@ -316,11 +376,10 @@ p {
 .template-group-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 6px solid var(--group-color, #4e79a7);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   display: grid;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .template-standalone-card {
@@ -329,19 +388,27 @@ p {
 
 .template-group-header {
   align-items: center;
-  background: color-mix(in srgb, var(--group-color, #4e79a7) 9%, #ffffff);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
+  border-top-left-radius: calc(var(--radius-md) - 1px);
+  border-top-right-radius: calc(var(--radius-md) - 1px);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-3);
 }
 
+.group-meta-actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.32rem;
+  margin-left: auto;
+}
+
 .group-header-actions {
   align-items: center;
   display: inline-flex;
-  gap: 0.3rem;
-  margin-left: auto;
+  gap: 0.32rem;
 }
 
 .group-header-actions button {
@@ -350,13 +417,10 @@ p {
 }
 
 .group-color-field {
-  align-self: end;
-  color: var(--text-muted);
-  display: grid;
-  font-size: 0.73rem;
-  font-weight: 700;
-  gap: 0.22rem;
-  min-width: 0;
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 28px;
 }
 
 .group-color-picker {
@@ -406,14 +470,13 @@ p {
   color: var(--text-muted);
   font-size: 0.86rem;
   font-weight: 700;
-  margin-left: auto;
 }
 
 .template-group-body {
   display: grid;
   gap: 12px;
   min-height: 58px;
-  padding: 0 var(--space-3) var(--space-3);
+  padding: var(--space-3);
 }
 
 .template-step-item {
@@ -427,15 +490,14 @@ p {
 }
 
 .template-step-item.is-standalone {
-  background: color-mix(in srgb, var(--step-color, #4e79a7) 11%, #ffffff);
-  border-color: color-mix(in srgb, var(--step-color, #4e79a7) 24%, var(--border));
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 .template-step-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.4rem;
-  padding-right: 2.4rem;
   position: relative;
 }
 
@@ -447,8 +509,24 @@ p {
 }
 
 .template-step-title-row.has-color-picker {
-  align-items: end;
-  grid-template-columns: minmax(0, 0.65fr) auto auto auto auto;
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-start;
+}
+
+.template-step-title-row.has-color-picker .step-name-field {
+  width: auto;
+}
+
+.template-step-title-row.has-color-picker .step-name-field input {
+  min-width: 14ch;
+  width: calc(16ch + 150px);
+}
+
+.template-step-title-row.has-color-picker .operator-field {
+  margin-left: 24px;
 }
 
 .template-step-lower {
@@ -512,22 +590,19 @@ p {
 }
 
 .sequence-name-field input {
-  min-width: 14ch;
+  min-width: calc(14ch + 130px);
 }
 
 .step-color-field {
-  min-width: 34px;
-  width: 34px;
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 28px;
+  width: 28px;
 }
 
 .step-color-field .group-color-trigger {
   width: 28px;
-}
-
-.step-delete-button {
-  position: absolute;
-  right: 0;
-  top: 0;
 }
 
 .step-color-presets {
@@ -562,6 +637,7 @@ p {
   display: inline-flex;
   gap: 0.32rem;
   justify-self: end;
+  margin-left: auto;
 }
 
 .step-header-actions button {
@@ -590,15 +666,14 @@ p {
   top: -12px;
 }
 
-.insertion-rail:hover::before,
-.insertion-rail:focus-within::before {
+.insertion-rail:hover::before {
   pointer-events: none;
 }
 
 .insertion-rail button {
   opacity: 0;
   position: relative;
-  padding: 0.3rem 0.62rem;
+  padding: 0.14rem 0.44rem;
   pointer-events: none;
   transform: scale(0.98);
   transition:
@@ -606,8 +681,13 @@ p {
     transform var(--motion-fast) ease;
 }
 
+.insertion-action-button {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 .insertion-rail:hover button,
-.insertion-rail:focus-within button {
+.insertion-rail button:focus-visible {
   opacity: 1;
   pointer-events: auto;
   transform: scale(1);
@@ -620,6 +700,12 @@ p {
   gap: 0.65rem;
   grid-template-columns: auto minmax(0, 1fr);
   padding-top: var(--space-3);
+}
+
+.template-portability-footer.is-empty {
+  border-top: 0;
+  gap: 0;
+  padding-top: 0;
 }
 
 .portability-action-button {
@@ -669,6 +755,12 @@ p {
   justify-content: space-between;
 }
 
+.runs-add-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -701,15 +793,25 @@ p {
   border-bottom: none;
 }
 
-.runs-table input[type="text"],
-.runs-table input[type="number"] {
+.runs-input {
+  min-width: 20ch;
   width: 100%;
+}
+
+.runs-input.runs-input-numeric {
+  min-width: 7ch;
+  width: 7ch;
+  text-align: center;
 }
 
 .run-actions-cell {
   display: grid;
   gap: 0.36rem;
   justify-items: start;
+}
+
+.run-action-tooltip-trigger {
+  display: inline-flex;
 }
 
 .run-inline-errors {
@@ -764,11 +866,18 @@ p {
 
 .portability-status {
   border-left: 2px solid var(--border);
-  color: var(--text);
-  font-size: 0.84rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
   margin: 0;
   min-height: 1.2em;
   padding-left: 0.6rem;
+}
+
+.template-portability-footer.is-empty .portability-status {
+  border-left: 0;
+  display: none;
+  min-height: 0;
+  padding-left: 0;
 }
 
 .timeline-wrap {
@@ -776,7 +885,7 @@ p {
 }
 
 .timeline-box {
-  background: var(--surface);
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow-x: auto;
@@ -785,7 +894,7 @@ p {
 }
 
 .timeline-svg {
-  background: linear-gradient(180deg, #fcfdff, #f8fbff);
+  background: transparent;
 }
 
 .lane-track {

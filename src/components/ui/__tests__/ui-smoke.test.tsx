@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -41,6 +42,14 @@ describe("shadcn ui smoke", () => {
     render(
       <div>
         <Button type="button">Smoke Button</Button>
+        <ButtonGroup aria-label="Smoke button group">
+          <Button type="button" variant="outline">
+            Group A
+          </Button>
+          <Button type="button" variant="outline">
+            Group B
+          </Button>
+        </ButtonGroup>
         <Card>
           <CardHeader>
             <CardTitle>Smoke Card</CardTitle>
@@ -94,6 +103,7 @@ describe("shadcn ui smoke", () => {
     );
 
     expect(screen.getByRole("button", { name: "Smoke Button" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Smoke button group" })).toBeTruthy();
     expect(screen.getByText("Smoke Card")).toBeTruthy();
     expect(screen.getByText("Smoke Badge")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open dialog" })).toBeTruthy();

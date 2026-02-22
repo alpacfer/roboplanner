@@ -29,7 +29,7 @@ describe("selector guard", () => {
     expect(screen.getByRole("button", { name: "Zoom in" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Zoom out" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Fit" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Add run" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add test" })).toBeTruthy();
     expect(screen.getByLabelText("Operator capacity")).toBeTruthy();
     expect(screen.getByLabelText("Scenario import file")).toBeTruthy();
 
@@ -38,7 +38,7 @@ describe("selector guard", () => {
 
     const operatorInvolvement = screen.getByLabelText(/^Operator involvement step-\d+$/);
     expect(operatorInvolvement).toBeTruthy();
-    expect(operatorInvolvement.tagName).toBe("SELECT");
+    expect(operatorInvolvement.tagName).toBe("INPUT");
 
     await user.click(screen.getByRole("button", { name: "Simulate" }));
 

@@ -32,7 +32,7 @@ describe("RunsEditor", () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.click(screen.getByRole("button", { name: "Add test" }));
 
     const runs = readRuns();
     expect(runs).toHaveLength(2);
@@ -59,7 +59,7 @@ describe("RunsEditor", () => {
     const user = userEvent.setup();
     render(<TestHarness />);
 
-    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.click(screen.getByRole("button", { name: "Add test" }));
     await user.click(screen.getByRole("button", { name: "Delete run 2" }));
 
     expect(screen.getByRole("dialog", { name: "Delete run?" })).toBeTruthy();
@@ -86,7 +86,7 @@ describe("RunsEditor", () => {
     expect(screen.getByRole("columnheader", { name: "Start (min)" })).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Actions" })).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.click(screen.getByRole("button", { name: "Add test" }));
     expect(screen.getAllByTestId("run-row")).toHaveLength(2);
   });
 });

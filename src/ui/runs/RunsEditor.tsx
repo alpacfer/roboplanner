@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { validateRun } from "../../domain/validation";
 import type { Run } from "../../domain/types";
 import ConfirmDialog from "../common/ConfirmDialog";
@@ -57,20 +60,22 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
   return (
     <section className="runs-editor">
       <div className="runs-editor-header">
-        <h2>Runs</h2>
-        <Button
-          aria-label="Add run"
-          className="icon-button"
-          size="icon"
-          title="Add run"
-          type="button"
-          variant="default"
-          onClick={addRun}
-        >
-          <span aria-hidden="true" className="icon-glyph">
-            +
-          </span>
-        </Button>
+        <h2>Add Tests in Parallel</h2>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label="Add test"
+              className="runs-add-button"
+              type="button"
+              variant="outline"
+              onClick={addRun}
+            >
+              <PlusIcon aria-hidden="true" />
+              <span>Test</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add test</TooltipContent>
+        </Tooltip>
       </div>
       <div className="table-wrap">
         <Table className="runs-table">
@@ -88,8 +93,9 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
               return (
                 <TableRow data-testid="run-row" key={run.id}>
                   <TableCell>
-                    <input
+                    <Input
                       aria-label={`Run label ${index + 1}`}
+                      className="runs-input"
                       type="text"
                       value={run.label}
                       onChange={(event) => {
@@ -100,6 +106,7 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                   <TableCell>
                     <IntegerInput
                       ariaLabel={`Run start ${index + 1}`}
+                      className="runs-input runs-input-numeric"
                       min={0}
                       value={run.startMin}
                       onCommit={(startMinValue) => {
@@ -112,20 +119,24 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                   </TableCell>
                   <TableCell>
                     <div className="run-actions-cell">
-                      <Button
-                        aria-label={`Delete run ${index + 1}`}
-                        className="danger-ghost-button icon-button"
-                        disabled={runs.length <= 1}
-                        size="icon"
-                        title={`Delete run ${run.label}`}
-                        type="button"
-                        variant="destructive"
-                        onClick={() => setPendingDeleteRunId(run.id)}
-                      >
-                        <span aria-hidden="true" className="icon-glyph">
-                          ×
-                        </span>
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="run-action-tooltip-trigger">
+                            <Button
+                              aria-label={`Delete run ${index + 1}`}
+                              className="delete-action-button icon-button"
+                              disabled={runs.length <= 1}
+                              size="icon"
+                              type="button"
+                              variant="outline"
+                              onClick={() => setPendingDeleteRunId(run.id)}
+                            >
+                              <Trash2Icon aria-hidden="true" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{`Delete run ${run.label}`}</TooltipContent>
+                      </Tooltip>
                       {errors.length > 0 ? (
                         <ul className="inline-errors run-inline-errors">
                           {errors.map((error) => (

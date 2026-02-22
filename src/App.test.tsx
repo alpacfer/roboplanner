@@ -257,7 +257,7 @@ describe("App", () => {
     const initialHeight = Number.parseInt((timelineBox as HTMLDivElement).style.height, 10);
     expect(initialHeight).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.click(screen.getByRole("button", { name: "Add test" }));
     const nextHeight = Number.parseInt((screen.getByTestId("timeline-box") as HTMLDivElement).style.height, 10);
     expect(nextHeight).toBeGreaterThan(initialHeight);
   });

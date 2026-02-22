@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Maximize2Icon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -232,15 +234,16 @@ function App() {
           </Card>
 
           <Card className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 px-0">
               <CardTitle>Simulation Settings</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="settings-content px-0">
               <div className="settings-fields">
-                <label className="field-row" htmlFor="operator-capacity">
+                <label className="field-row settings-field" htmlFor="operator-capacity">
                   <span>Operator capacity</span>
                   <IntegerInput
                     ariaLabel="Operator capacity"
+                    className="settings-input"
                     min={1}
                     value={settings.operatorCapacity}
                     onCommit={(capacity) => {
@@ -253,15 +256,17 @@ function App() {
                 </label>
               </div>
 
-              <Button
-                className="simulate-button"
-                data-testid="simulate-button"
-                disabled={template.length === 0}
-                type="button"
-                onClick={simulate}
-              >
-                Simulate
-              </Button>
+              <div className="settings-actions">
+                <Button
+                  className="simulate-button"
+                  data-testid="simulate-button"
+                  disabled={template.length === 0}
+                  type="button"
+                  onClick={simulate}
+                >
+                  Simulate
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </aside>
@@ -282,15 +287,17 @@ function App() {
                 />
                 Show wait segments
               </Label>
-              <Button type="button" variant="outline" onClick={() => zoom(1.25)}>
-                Zoom in
-              </Button>
-              <Button type="button" variant="outline" onClick={() => zoom(0.8)}>
-                Zoom out
-              </Button>
-              <Button type="button" variant="outline" onClick={fitToWindow}>
-                Fit
-              </Button>
+              <ButtonGroup aria-label="Timeline zoom controls" className="timeline-zoom-group">
+                <Button aria-label="Zoom in" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(1.25)}>
+                  <ZoomInIcon aria-hidden="true" />
+                </Button>
+                <Button aria-label="Zoom out" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(0.8)}>
+                  <ZoomOutIcon aria-hidden="true" />
+                </Button>
+                <Button aria-label="Fit" className="icon-button" size="icon" type="button" variant="outline" onClick={fitToWindow}>
+                  <Maximize2Icon aria-hidden="true" />
+                </Button>
+              </ButtonGroup>
             </div>
           </div>
           <div
