@@ -83,6 +83,7 @@ function App() {
       stepGroups,
       runs,
       settings,
+      sharedResources,
     });
     setSegments(result.segments);
     setMetrics(result.metrics);

@@ -16,6 +16,8 @@ import type {
 
 type RunStatus = "READY_START" | "ACTIVE" | "WAITING_START" | "WAITING_END" | "DONE";
 
+type WaitReason = "operator" | "resources" | "operator/resources";
+
 interface RunState {
   runId: string;
   stepIndex: number;
@@ -26,14 +28,18 @@ interface RunState {
     involvement: OperatorInvolvement;
     nominalEndMin: number;
     holdsWhole: boolean;
+    heldResourceIds: string[];
   };
 }
 
 interface QueueRequest {
   runId: string;
   stepIndex: number;
-  phase: OperatorPhase;
+  kind: "START" | "END";
+  operatorPhase: OperatorPhase | null;
+  requiredResourceIds: string[];
   queuedAtMin: number;
+  waitReason: WaitReason;
 }
 
 function buildMetrics(segments: Segment[], operatorCapacity: number): SimulationMetrics {
@@ -69,6 +75,32 @@ function stepToSegmentBase(step: Plan["template"][number], involvement: Operator
     operatorCheckpointAtStart: involvement === "WHOLE",
     operatorCheckpointAtEnd: involvement === "WHOLE",
   };
+}
+
+function buildResourceCapacityMap(plan: Plan): Map<string, number> {
+  return new Map(
+    (plan.sharedResources ?? [])
+      .filter((resource) => Number.isInteger(resource.quantity) && resource.quantity > 0)
+      .map((resource) => [resource.id, resource.quantity]),
+  );
+}
+
+function normalizeStepResourceIds(resourceIds: Plan["template"][number]["resourceIds"]): string[] {
+  if (!Array.isArray(resourceIds)) {
+    return [];
+  }
+
+  return [...new Set(resourceIds.filter((resourceId): resourceId is string => typeof resourceId === "string"))];
+}
+
+function waitNameForReason(reason: WaitReason): string {
+  if (reason === "operator") {
+    return "wait: operator";
+  }
+  if (reason === "resources") {
+    return "wait: resources";
+  }
+  return "wait: operator/resources";
 }
 
 export function scheduleLinear(plan: Plan): Segment[] {
@@ -123,15 +155,31 @@ export function simulateDES(plan: Plan): SimulationResult {
     ]),
   );
   const queue: QueueRequest[] = [];
+  const resourceAvailableById = buildResourceCapacityMap(plan);
   let operatorInUse = 0;
 
-  const addWaitIfNeeded = (runId: string, waitStartMin: number, nowMin: number) => {
+  const areResourcesAvailable = (resourceIds: string[]) =>
+    resourceIds.every((resourceId) => (resourceAvailableById.get(resourceId) ?? 0) > 0);
+
+  const acquireResources = (resourceIds: string[]) => {
+    for (const resourceId of resourceIds) {
+      resourceAvailableById.set(resourceId, (resourceAvailableById.get(resourceId) ?? 0) - 1);
+    }
+  };
+
+  const releaseResources = (resourceIds: string[]) => {
+    for (const resourceId of resourceIds) {
+      resourceAvailableById.set(resourceId, (resourceAvailableById.get(resourceId) ?? 0) + 1);
+    }
+  };
+
+  const addWaitIfNeeded = (runId: string, waitStartMin: number, nowMin: number, reason: WaitReason) => {
     if (nowMin <= waitStartMin) {
       return;
     }
     segments.push({
       runId,
-      name: "wait: operator",
+      name: waitNameForReason(reason),
       startMin: waitStartMin,
       endMin: nowMin,
       kind: "wait",
@@ -166,6 +214,10 @@ export function simulateDES(plan: Plan): SimulationResult {
   };
 
   const finishStep = (state: RunState, atMin: number, stepId: string) => {
+    if (state.activeStep) {
+      releaseResources(state.activeStep.heldResourceIds);
+    }
+
     events.push({ timeMin: atMin, type: "STEP_END", runId: state.runId, stepId });
     state.stepIndex += 1;
     if (state.stepIndex >= plan.template.length) {
@@ -178,7 +230,13 @@ export function simulateDES(plan: Plan): SimulationResult {
     state.activeStep = undefined;
   };
 
-  const startStep = (state: RunState, atMin: number, step: Plan["template"][number], involvement: OperatorInvolvement) => {
+  const startStep = (
+    state: RunState,
+    atMin: number,
+    step: Plan["template"][number],
+    involvement: OperatorInvolvement,
+    heldResourceIds: string[],
+  ) => {
     events.push({ timeMin: atMin, type: "STEP_START", runId: state.runId, stepId: step.id });
     segments.push({
       runId: state.runId,
@@ -193,6 +251,7 @@ export function simulateDES(plan: Plan): SimulationResult {
       involvement,
       nominalEndMin: atMin + step.durationMin,
       holdsWhole: involvement === "WHOLE",
+      heldResourceIds,
     };
   };
 
@@ -262,8 +321,11 @@ export function simulateDES(plan: Plan): SimulationResult {
       queue.push({
         runId: state.runId,
         stepIndex: state.stepIndex,
-        phase: "END",
+        kind: "END",
+        operatorPhase: "END",
+        requiredResourceIds: [],
         queuedAtMin: currentMin,
+        waitReason: "operator",
       });
       events.push({ timeMin: currentMin, type: "WAIT_START", runId: state.runId, stepId: step.id, phase: "END" });
     }
@@ -291,64 +353,111 @@ export function simulateDES(plan: Plan): SimulationResult {
     for (const state of readyToStart) {
       const step = plan.template[state.stepIndex];
       const involvement = normalizeOperatorInvolvement(step);
+      const requiredResourceIds = normalizeStepResourceIds(step.resourceIds);
+      const operatorPhase = needsStartCheckpoint(involvement)
+        ? ((involvement === "WHOLE" ? "WHOLE" : "START") as OperatorPhase)
+        : null;
+
       events.push({ timeMin: currentMin, type: "RUN_READY", runId: state.runId, stepId: step.id, phase: "START" });
 
-      if (!needsStartCheckpoint(involvement)) {
-        startStep(state, currentMin, step, involvement);
+      if (!operatorPhase && requiredResourceIds.length === 0) {
+        startStep(state, currentMin, step, involvement, []);
         continue;
       }
 
       state.status = "WAITING_START";
+
+      const waitReason: WaitReason = operatorPhase
+        ? requiredResourceIds.length > 0
+          ? "operator/resources"
+          : "operator"
+        : "resources";
+
       queue.push({
         runId: state.runId,
         stepIndex: state.stepIndex,
-        phase: involvement === "WHOLE" ? "WHOLE" : "START",
+        kind: "START",
+        operatorPhase,
+        requiredResourceIds,
         queuedAtMin: currentMin,
+        waitReason,
       });
       events.push({
         timeMin: currentMin,
         type: "WAIT_START",
         runId: state.runId,
         stepId: step.id,
-        phase: involvement === "WHOLE" ? "WHOLE" : "START",
+        phase: operatorPhase ?? undefined,
       });
     }
 
-    while (queue.length > 0 && operatorInUse < operatorCapacity) {
-      const request = queue.shift()!;
+    while (queue.length > 0) {
+      const request = queue[0];
       const state = runStates.get(request.runId)!;
       const step = plan.template[request.stepIndex];
       if (!step || state.stepIndex !== request.stepIndex) {
+        queue.shift();
         continue;
       }
 
-      addWaitIfNeeded(request.runId, request.queuedAtMin, currentMin);
+      if (request.kind === "END") {
+        if (operatorInUse >= operatorCapacity) {
+          break;
+        }
+
+        queue.shift();
+        addWaitIfNeeded(request.runId, request.queuedAtMin, currentMin, request.waitReason);
+        events.push({
+          timeMin: currentMin,
+          type: "WAIT_END",
+          runId: request.runId,
+          stepId: step.id,
+          phase: request.operatorPhase ?? undefined,
+        });
+
+        addCheckpointSegment(state.runId, step, normalizeOperatorInvolvement(step), "END", currentMin);
+        acquireOperator(state.runId, step.id, currentMin, "END");
+        releaseOperator(state.runId, step.id, currentMin, "END");
+        finishStep(state, currentMin, step.id);
+        continue;
+      }
+
+      if (!areResourcesAvailable(request.requiredResourceIds)) {
+        break;
+      }
+
+      if (request.operatorPhase && operatorInUse >= operatorCapacity) {
+        break;
+      }
+
+      queue.shift();
+      addWaitIfNeeded(request.runId, request.queuedAtMin, currentMin, request.waitReason);
       events.push({
         timeMin: currentMin,
         type: "WAIT_END",
         runId: request.runId,
         stepId: step.id,
-        phase: request.phase,
+        phase: request.operatorPhase ?? undefined,
       });
 
-      if (request.phase === "WHOLE") {
+      acquireResources(request.requiredResourceIds);
+
+      if (request.operatorPhase === "WHOLE") {
         acquireOperator(state.runId, step.id, currentMin, "WHOLE");
-        startStep(state, currentMin, step, "WHOLE");
+        startStep(state, currentMin, step, "WHOLE", request.requiredResourceIds);
         continue;
       }
 
-      if (request.phase === "START") {
-        addCheckpointSegment(state.runId, step, normalizeOperatorInvolvement(step), "START", currentMin);
+      if (request.operatorPhase === "START") {
+        const involvement = normalizeOperatorInvolvement(step);
+        addCheckpointSegment(state.runId, step, involvement, "START", currentMin);
         acquireOperator(state.runId, step.id, currentMin, "START");
         releaseOperator(state.runId, step.id, currentMin, "START");
-        startStep(state, currentMin, step, normalizeOperatorInvolvement(step));
+        startStep(state, currentMin, step, involvement, request.requiredResourceIds);
         continue;
       }
 
-      addCheckpointSegment(state.runId, step, normalizeOperatorInvolvement(step), "END", currentMin);
-      acquireOperator(state.runId, step.id, currentMin, "END");
-      releaseOperator(state.runId, step.id, currentMin, "END");
-      finishStep(state, currentMin, step.id);
+      startStep(state, currentMin, step, normalizeOperatorInvolvement(step), request.requiredResourceIds);
     }
   }
 

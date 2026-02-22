@@ -44,6 +44,7 @@ export interface Plan {
   stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
+  sharedResources?: SharedResource[];
 }
 
 export type SegmentKind = "step" | "wait" | "operator_checkpoint";
