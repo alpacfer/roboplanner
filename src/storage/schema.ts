@@ -1,5 +1,5 @@
 import { mapLegacyRequiresOperator } from "../domain/operator";
-import type { OperatorInvolvement, PlanSettings, Run, Step, StepGroup } from "../domain/types";
+import type { OperatorInvolvement, PlanSettings, Run, SharedResource, Step, StepGroup } from "../domain/types";
 
 export const SCENARIO_SCHEMA_VERSION = 3;
 
@@ -16,6 +16,7 @@ export interface ScenarioDataV3 {
   stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
+  sharedResources: SharedResource[];
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -101,6 +102,14 @@ function isValidPlanSettings(value: unknown): value is PlanSettings {
   );
 }
 
+function isValidSharedResource(value: unknown): value is SharedResource {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return typeof value.id === "string" && isNonEmptyString(value.name) && isInteger(value.quantity) && value.quantity > 0;
+}
+
 export function serializeScenarioData(input: Omit<ScenarioDataV3, "version">): string {
   const payload: ScenarioDataV3 = {
     version: SCENARIO_SCHEMA_VERSION,
@@ -108,6 +117,7 @@ export function serializeScenarioData(input: Omit<ScenarioDataV3, "version">): s
     stepGroups: input.stepGroups,
     runs: input.runs,
     settings: input.settings,
+    sharedResources: input.sharedResources,
   };
 
   return JSON.stringify(payload, null, 2);
@@ -156,7 +166,12 @@ function hasUniqueIds<T extends { id: string }>(records: T[]): boolean {
   return new Set(records.map((record) => record.id)).size === records.length;
 }
 
-function ensureValidScenarioReferences(template: Step[], stepGroups: StepGroup[], runs: Run[]) {
+function ensureValidScenarioReferences(
+  template: Step[],
+  stepGroups: StepGroup[],
+  runs: Run[],
+  sharedResources: SharedResource[],
+) {
   if (!hasUniqueIds(template)) {
     throw new Error("Scenario payload has duplicate template step ids.");
   }
@@ -167,6 +182,10 @@ function ensureValidScenarioReferences(template: Step[], stepGroups: StepGroup[]
 
   if (!hasUniqueIds(runs)) {
     throw new Error("Scenario payload has duplicate run ids.");
+  }
+
+  if (!hasUniqueIds(sharedResources)) {
+    throw new Error("Scenario payload has duplicate shared resource ids.");
   }
 
   const groupIds = new Set(stepGroups.map((group) => group.id));
@@ -190,6 +209,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
 
   let normalizedTemplate: Step[];
   let stepGroups: StepGroup[] = [];
+  let sharedResources: SharedResource[] = [];
 
   if (version === 1) {
     if (!Array.isArray(template)) {
@@ -210,6 +230,13 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
     }
     normalizedTemplate = normalizeTemplateWithFallback(template);
     stepGroups = raw.stepGroups;
+
+    if (typeof raw.sharedResources !== "undefined") {
+      if (!Array.isArray(raw.sharedResources) || !raw.sharedResources.every((resource) => isValidSharedResource(resource))) {
+        throw new Error("Scenario payload has invalid sharedResources data.");
+      }
+      sharedResources = raw.sharedResources;
+    }
   }
 
   if (version !== SCENARIO_SCHEMA_VERSION && normalizedTemplate.length === 0) {
@@ -228,7 +255,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
     throw new Error("Scenario payload has invalid settings data.");
   }
 
-  ensureValidScenarioReferences(normalizedTemplate, stepGroups, runs);
+  ensureValidScenarioReferences(normalizedTemplate, stepGroups, runs, sharedResources);
 
   return {
     version: SCENARIO_SCHEMA_VERSION,
@@ -236,6 +263,7 @@ export function migrateScenarioData(raw: unknown): ScenarioDataV3 {
     stepGroups,
     runs,
     settings,
+    sharedResources,
   };
 }
 

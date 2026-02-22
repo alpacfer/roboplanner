@@ -4,9 +4,7 @@ import {
   ChevronUpIcon,
   ChevronsDownIcon,
   ChevronsUpIcon,
-  DownloadIcon,
   Trash2Icon,
-  UploadIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +24,7 @@ import {
 } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
@@ -38,8 +37,6 @@ interface TemplateEditorProps {
   stepGroups: StepGroup[];
   sharedResources: SharedResource[];
   onChange: (payload: { steps: Step[]; stepGroups: StepGroup[] }) => void;
-  onImportClick: () => void;
-  onExportClick: () => void;
   portabilityStatus: string;
 }
 
@@ -242,9 +239,10 @@ interface TopLevelInsertActionsProps {
   position: number;
   onAddStep: () => void;
   onAddSequence: () => void;
+  variant?: "ghost" | "outline";
 }
 
-function TopLevelInsertActions({ position, onAddStep, onAddSequence }: TopLevelInsertActionsProps) {
+function TopLevelInsertActions({ position, onAddStep, onAddSequence, variant = "ghost" }: TopLevelInsertActionsProps) {
   return (
     <ButtonGroup aria-label={`Top level insertion controls at position ${position}`} className="insertion-action-group">
       <Button
@@ -252,7 +250,7 @@ function TopLevelInsertActions({ position, onAddStep, onAddSequence }: TopLevelI
         className="insertion-action-button"
         size="xs"
         type="button"
-        variant="ghost"
+        variant={variant}
         onClick={onAddStep}
       >
         Add step
@@ -262,7 +260,7 @@ function TopLevelInsertActions({ position, onAddStep, onAddSequence }: TopLevelI
         className="insertion-action-button"
         size="xs"
         type="button"
-        variant="ghost"
+        variant={variant}
         onClick={onAddSequence}
       >
         Add sequence
@@ -433,35 +431,30 @@ function StepItem({
 
           <label className="field-row operator-field">
             <span>Operator involvement</span>
-            <Combobox
-              items={OPERATOR_INVOLVEMENT_OPTIONS}
-              itemToStringValue={(option) => option.label}
-              value={
-                OPERATOR_INVOLVEMENT_OPTIONS.find((option) => option.value === step.operatorInvolvement) ??
-                OPERATOR_INVOLVEMENT_OPTIONS[0]
-              }
+            <Select
+              value={step.operatorInvolvement}
               onValueChange={(nextValue) => {
-                if (!nextValue) {
+                const selectedOption = OPERATOR_INVOLVEMENT_OPTIONS.find((option) => option.value === nextValue);
+                if (!selectedOption) {
                   return;
                 }
                 onUpdate(step.id, {
                   ...step,
-                  operatorInvolvement: nextValue.value,
+                  operatorInvolvement: selectedOption.value,
                 });
               }}
             >
-              <ComboboxInput aria-label={`Operator involvement ${step.id}`} className="operator-select" />
-              <ComboboxContent>
-                <ComboboxEmpty>No options found.</ComboboxEmpty>
-                <ComboboxList>
-                  {(option) => (
-                    <ComboboxItem key={option.value} value={option}>
-                      {option.label}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
+              <SelectTrigger aria-label={`Operator involvement ${step.id}`} className="operator-select">
+                <SelectValue placeholder="Select involvement" />
+              </SelectTrigger>
+              <SelectContent>
+                {OPERATOR_INVOLVEMENT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
 
           <label className="field-row resources-field">
@@ -489,13 +482,14 @@ function StepItem({
                       <ComboboxChipsInput
                         aria-label={`Resources ${step.id}`}
                         className="step-resources-chip-input"
+                        placeholder={selectedResourceOptions.length === 0 ? "Add a shared resource." : undefined}
                       />
                     </>
                   )}
                 </ComboboxValue>
               </ComboboxChips>
               <ComboboxContent anchor={resourceAnchor}>
-                <ComboboxEmpty>No resources found.</ComboboxEmpty>
+                <ComboboxEmpty className="justify-start pl-2 text-left">No shared resources yet.</ComboboxEmpty>
                 <ComboboxList>
                   {(resource) => (
                     <ComboboxItem key={resource.id} value={resource}>
@@ -542,7 +536,7 @@ function StepItem({
                     <Trash2Icon aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{`Delete step ${step.name || stepIndex + 1}`}</TooltipContent>
+                <TooltipContent side="top">{`Delete step ${step.name || stepIndex + 1}`}</TooltipContent>
               </Tooltip>
             </ButtonGroup>
           </ButtonGroup>
@@ -565,8 +559,6 @@ function TemplateEditor({
   stepGroups,
   sharedResources,
   onChange,
-  onImportClick,
-  onExportClick,
   portabilityStatus,
 }: TemplateEditorProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -842,33 +834,10 @@ function TemplateEditor({
       <div className="template-editor-header">
         <div className="template-editor-title-group">
           <h2>Template Steps</h2>
-          <p>Organize and reorder sequences and standalone steps in one flow.</p>
         </div>
 
         <div className="template-editor-actions">
           <ButtonGroup aria-label="Template step actions" className="row-actions">
-            <ButtonGroup>
-              <Button
-                aria-label="Import scenario"
-                className="portability-action-button"
-                type="button"
-                variant="outline"
-                onClick={onImportClick}
-              >
-                <DownloadIcon aria-hidden="true" />
-                <span>Import</span>
-              </Button>
-              <Button
-                aria-label="Export scenario"
-                className="portability-action-button"
-                type="button"
-                variant="outline"
-                onClick={onExportClick}
-              >
-                <UploadIcon aria-hidden="true" />
-                <span>Export</span>
-              </Button>
-            </ButtonGroup>
             <ButtonGroup>
               <Button
                 aria-label={areAllCollapsed ? "Expand all sequences" : "Collapse all sequences"}
@@ -883,17 +852,22 @@ function TemplateEditor({
               </Button>
             </ButtonGroup>
             <ButtonGroup>
-              <Button
-                aria-label="Delete all steps and sequences"
-                className="delete-action-button icon-button"
-                disabled={stepGroups.length === 0 && steps.length === 0}
-                size="icon"
-                type="button"
-                variant="outline"
-                onClick={() => setPendingDelete({ kind: "all-groups" })}
-              >
-                <Trash2Icon aria-hidden="true" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label="Delete all steps and sequences"
+                    className="delete-action-button icon-button"
+                    disabled={stepGroups.length === 0 && steps.length === 0}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                    onClick={() => setPendingDelete({ kind: "all-groups" })}
+                  >
+                    <Trash2Icon aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Delete all steps and sequences</TooltipContent>
+              </Tooltip>
             </ButtonGroup>
           </ButtonGroup>
         </div>
@@ -903,6 +877,7 @@ function TemplateEditor({
         <div className="insertion-rail insertion-rail-top-level" data-testid="top-level-insert-0">
           <TopLevelInsertActions
             position={1}
+            variant={topLevelBlocks.length === 0 ? "outline" : "ghost"}
             onAddSequence={() => insertSequenceAtTopLevel(0)}
             onAddStep={() => insertStepAtTopLevel(0)}
           />
@@ -921,30 +896,72 @@ function TemplateEditor({
             const stepErrorCount = groupSteps.reduce((count, step) => count + (stepErrorsById[step.id]?.length ?? 0), 0);
             const errorCount = ownErrors.length + stepErrorCount;
             const groupColor = normalizeStepColor(group.color);
+            const toggleGroupCollapsed = () => {
+              const nextCollapsed = !collapsed;
+              setCollapsedGroups((current) => ({ ...current, [group.id]: nextCollapsed }));
+              if (nextCollapsed) {
+                setOpenGroupColorMenuId((current) => (current === group.id ? null : current));
+              }
+            };
+            const isInteractiveTarget = (target: EventTarget | null, currentTarget: EventTarget | null) => {
+              if (!(target instanceof HTMLElement)) {
+                return false;
+              }
+              const interactiveAncestor = target.closest(
+                "button, input, select, textarea, [role='button'], [role='menuitem'], a",
+              );
+              if (!interactiveAncestor) {
+                return false;
+              }
+              return interactiveAncestor !== currentTarget;
+            };
 
             return (
               <Fragment key={group.id}>
                 <article
-                  className="template-group-card"
+                  className={`template-group-card ${collapsed ? "is-collapsed" : ""}`}
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? `Expand sequence ${group.name}` : undefined}
+                  role={collapsed ? "button" : undefined}
                   style={{
                     "--group-color": groupColor,
                   } as CSSProperties}
                   data-testid="template-group-card"
+                  tabIndex={collapsed ? 0 : undefined}
+                  onClick={(event) => {
+                    if (!collapsed || isInteractiveTarget(event.target, event.currentTarget)) {
+                      return;
+                    }
+                    toggleGroupCollapsed();
+                  }}
+                  onKeyDown={(event) => {
+                    if (!collapsed || isInteractiveTarget(event.target, event.currentTarget)) {
+                      return;
+                    }
+                    if (event.key !== "Enter" && event.key !== " ") {
+                      return;
+                    }
+                    event.preventDefault();
+                    toggleGroupCollapsed();
+                  }}
                 >
-                  <div className="template-group-header">
+                  <div
+                    className={`template-group-header ${collapsed ? "" : "is-clickable"}`}
+                    data-testid={`group-header-${group.id}`}
+                    onClick={(event) => {
+                      if (collapsed || isInteractiveTarget(event.target, event.currentTarget)) {
+                        return;
+                      }
+                      toggleGroupCollapsed();
+                    }}
+                  >
                     <Button
                       aria-label={`${collapsed ? "Expand" : "Collapse"} sequence ${group.name}`}
                       className="group-toggle-button icon-button"
                       size="icon"
                       type="button"
                       variant="ghost"
-                      onClick={() => {
-                        const nextCollapsed = !collapsed;
-                        setCollapsedGroups((current) => ({ ...current, [group.id]: nextCollapsed }));
-                        if (nextCollapsed) {
-                          setOpenGroupColorMenuId((current) => (current === group.id ? null : current));
-                        }
-                      }}
+                      onClick={toggleGroupCollapsed}
                     >
                       {collapsed ? <ChevronsDownIcon aria-hidden="true" /> : <ChevronsUpIcon aria-hidden="true" />}
                     </Button>
@@ -1044,16 +1061,21 @@ function TemplateEditor({
                           </Button>
                         </ButtonGroup>
                         <ButtonGroup>
-                          <Button
-                            aria-label={`Delete sequence ${group.name}`}
-                            className="delete-action-button icon-button"
-                            size="icon"
-                            type="button"
-                            variant="outline"
-                            onClick={() => setPendingDelete({ kind: "group", groupId: group.id })}
-                          >
-                            <Trash2Icon aria-hidden="true" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                aria-label={`Delete sequence ${group.name}`}
+                                className="delete-action-button icon-button"
+                                size="icon"
+                                type="button"
+                                variant="outline"
+                                onClick={() => setPendingDelete({ kind: "group", groupId: group.id })}
+                              >
+                                <Trash2Icon aria-hidden="true" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{`Delete sequence ${group.name}`}</TooltipContent>
+                          </Tooltip>
                         </ButtonGroup>
                       </ButtonGroup>
                     </div>

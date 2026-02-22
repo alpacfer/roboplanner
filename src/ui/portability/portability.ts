@@ -1,4 +1,4 @@
-import type { PlanSettings, Run, Step, StepGroup } from "../../domain/types";
+import type { PlanSettings, Run, SharedResource, Step, StepGroup } from "../../domain/types";
 import { deserializeScenarioData, serializeScenarioData } from "../../storage/schema";
 import { buildScenarioFromTestStandHtml } from "../../storage/teststandHtml";
 
@@ -46,6 +46,7 @@ export function exportScenarioAsDownload(payload: {
   stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
+  sharedResources: SharedResource[];
 }): string {
   const scenarioText = serializeScenarioData(payload);
   const fileName = `scenario-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.json`;
@@ -72,11 +73,13 @@ export async function importScenarioFromFile(input: {
   file: File;
   runs: Run[];
   settings: PlanSettings;
+  sharedResources: SharedResource[];
 }): Promise<{
   template: Step[];
   stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
+  sharedResources: SharedResource[];
   statusMessage: string;
 }> {
   const scenarioText = await readFileAsText(input.file);
@@ -89,6 +92,7 @@ export async function importScenarioFromFile(input: {
       stepGroups: parsed.stepGroups,
       runs: parsed.runs,
       settings: parsed.settings,
+      sharedResources: parsed.sharedResources,
       statusMessage: `Scenario imported from ${input.file.name}.`,
     };
   }
@@ -104,6 +108,7 @@ export async function importScenarioFromFile(input: {
       stepGroups: imported.stepGroups,
       runs: input.runs,
       settings: input.settings,
+      sharedResources: input.sharedResources,
       statusMessage: `Imported TestStand HTML from ${input.file.name} (${imported.stepGroups.length} sequences, ${imported.template.length} steps).`,
     };
   }

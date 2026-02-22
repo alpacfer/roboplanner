@@ -13,6 +13,7 @@ const baseScenario = {
   stepGroups: [] as Array<{ id: string; name: string; color: string }>,
   runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
   settings: { operatorCapacity: 1, queuePolicy: "FIFO" as const },
+  sharedResources: [{ id: "resource-1", name: "Robot arm", quantity: 2 }],
 };
 
 describe("portability", () => {
@@ -95,12 +96,14 @@ describe("portability", () => {
       file: new File([payload], "scenario.json", { type: "application/json" }),
       runs: baseScenario.runs,
       settings: baseScenario.settings,
+      sharedResources: baseScenario.sharedResources,
     });
 
     expect(imported.template).toEqual(baseScenario.template);
     expect(imported.stepGroups).toEqual(baseScenario.stepGroups);
     expect(imported.runs).toEqual(baseScenario.runs);
     expect(imported.settings).toEqual(baseScenario.settings);
+    expect(imported.sharedResources).toEqual(baseScenario.sharedResources);
     expect(imported.statusMessage).toBe("Scenario imported from scenario.json.");
   });
 
@@ -110,6 +113,7 @@ describe("portability", () => {
         file: new File(["{invalid"], "scenario.json", { type: "application/json" }),
         runs: baseScenario.runs,
         settings: baseScenario.settings,
+        sharedResources: baseScenario.sharedResources,
       }),
     ).rejects.toThrow("Scenario payload is not valid JSON.");
   });
@@ -120,21 +124,24 @@ describe("portability", () => {
         file: new File(["plain text"], "notes.txt", { type: "text/plain" }),
         runs: baseScenario.runs,
         settings: baseScenario.settings,
+        sharedResources: baseScenario.sharedResources,
       }),
     ).rejects.toThrow(
       "Unsupported import format. Please import a scenario JSON file or TestStand HTML export.",
     );
   });
 
-  it("imports TestStand HTML and preserves current runs/settings", async () => {
+  it("imports TestStand HTML and preserves current runs/settings/resources", async () => {
     const fixture = readFixture("setup_documentation.html");
     const runs = [{ id: "r2", label: "KeepRun", startMin: 5, templateId: "plan-default" }];
     const settings = { operatorCapacity: 3, queuePolicy: "FIFO" as const };
+    const sharedResources = [{ id: "resource-2", name: "Fixture", quantity: 1 }];
 
     const imported = await importScenarioFromFile({
       file: new File([fixture], "setup_documentation.html", { type: "text/html" }),
       runs,
       settings,
+      sharedResources,
     });
 
     expect(imported.stepGroups).toHaveLength(15);
@@ -149,6 +156,7 @@ describe("portability", () => {
     });
     expect(imported.runs).toEqual(runs);
     expect(imported.settings).toEqual(settings);
+    expect(imported.sharedResources).toEqual(sharedResources);
     expect(imported.statusMessage).toBe(
       "Imported TestStand HTML from setup_documentation.html (15 sequences, 156 steps).",
     );
@@ -160,6 +168,7 @@ describe("portability", () => {
         file: new File(["<html><body>No sequence markers</body></html>"], "setup.html", { type: "text/html" }),
         runs: baseScenario.runs,
         settings: baseScenario.settings,
+        sharedResources: baseScenario.sharedResources,
       }),
     ).rejects.toThrow("TestStand HTML does not contain any sequences.");
   });

@@ -1,10 +1,18 @@
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Maximize2Icon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  DownloadIcon,
+  EyeIcon,
+  EyeOffIcon,
+  Maximize2Icon,
+  MoonIcon,
+  SunIcon,
+  UploadIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
 import type {
@@ -37,6 +45,10 @@ const TIMELINE_AXIS_HEIGHT = 26;
 const TIMELINE_LANE_HEIGHT = 44;
 const TIMELINE_LANE_GAP = 10;
 const TIMELINE_BOTTOM_PAD = 18;
+const THEME_STORAGE_KEY = "roboplanner-theme";
+const THEME_TRANSITION_MS = 180;
+
+type AppTheme = "light" | "dark";
 
 function assignDefaultSequenceColorsInOrder(stepGroups: StepGroup[]): StepGroup[] {
   return stepGroups.map((group, index) => ({
@@ -50,6 +62,39 @@ function normalizeStepResourceIds(resourceIds: Step["resourceIds"]): string[] {
     return [];
   }
   return resourceIds.filter((resourceId): resourceId is string => typeof resourceId === "string");
+}
+
+function pruneDeletedResourceIdsFromSteps(steps: Step[], resources: SharedResource[]): Step[] {
+  const availableResourceIds = new Set(resources.map((resource) => resource.id));
+  let didChange = false;
+
+  const nextSteps = steps.map((step) => {
+    const currentResourceIds = normalizeStepResourceIds(step.resourceIds);
+    const nextResourceIds = currentResourceIds.filter((resourceId) => availableResourceIds.has(resourceId));
+    if (nextResourceIds.length === currentResourceIds.length) {
+      return step;
+    }
+    didChange = true;
+    return {
+      ...step,
+      resourceIds: nextResourceIds,
+    };
+  });
+
+  return didChange ? nextSteps : steps;
+}
+
+function getInitialTheme(): AppTheme {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (storedTheme === "light" || storedTheme === "dark") {
+    return storedTheme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function App() {
@@ -73,8 +118,35 @@ function App() {
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [portabilityStatus, setPortabilityStatus] = useState("");
+  const [theme, setTheme] = useState<AppTheme>(getInitialTheme);
   const timelineBoxRef = useRef<HTMLDivElement | null>(null);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
+  const themeTransitionTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const isDark = theme === "dark";
+    const root = document.documentElement;
+    root.classList.add("theme-animating");
+    root.classList.toggle("dark", isDark);
+    root.style.colorScheme = isDark ? "dark" : "light";
+    if (themeTransitionTimerRef.current !== null) {
+      window.clearTimeout(themeTransitionTimerRef.current);
+    }
+    themeTransitionTimerRef.current = window.setTimeout(() => {
+      document.documentElement.classList.remove("theme-animating");
+      themeTransitionTimerRef.current = null;
+    }, THEME_TRANSITION_MS);
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  useEffect(
+    () => () => {
+      if (themeTransitionTimerRef.current !== null) {
+        window.clearTimeout(themeTransitionTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const simulate = () => {
     const result = simulateDES({
@@ -94,6 +166,7 @@ function App() {
     stepGroups: StepGroup[];
     runs: Run[];
     settings: PlanSettings;
+    sharedResources: SharedResource[];
   }) => {
     setTemplate(
       payload.template.map((step) => ({
@@ -107,6 +180,7 @@ function App() {
     setStepGroups(assignDefaultSequenceColorsInOrder(payload.stepGroups));
     setRuns(payload.runs);
     setSettings(payload.settings);
+    setSharedResources(payload.sharedResources);
     setSegments([]);
     setMetrics(null);
   };
@@ -118,6 +192,7 @@ function App() {
         stepGroups,
         runs,
         settings,
+        sharedResources,
       });
       setPortabilityStatus(`Scenario downloaded (${fileName}).`);
     } catch {
@@ -127,6 +202,11 @@ function App() {
 
   const handleImportClick = () => {
     importFileInputRef.current?.click();
+  };
+
+  const handleSharedResourcesChange = (nextResources: SharedResource[]) => {
+    setSharedResources(nextResources);
+    setTemplate((currentTemplate) => pruneDeletedResourceIdsFromSteps(currentTemplate, nextResources));
   };
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -142,6 +222,7 @@ function App() {
         file,
         runs,
         settings,
+        sharedResources,
       });
 
       applyImportedScenario({
@@ -149,6 +230,7 @@ function App() {
         stepGroups: imported.stepGroups,
         runs: imported.runs,
         settings: imported.settings,
+        sharedResources: imported.sharedResources,
       });
       setPortabilityStatus(imported.statusMessage);
     } catch (error) {
@@ -212,14 +294,54 @@ function App() {
     timelineBoxRef.current.scrollTo({ left: 0, top: 0, behavior: "auto" });
   };
 
+  const toggleTheme = () => {
+    setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
+  };
+
   return (
     <main className="app-shell mx-auto grid max-w-[1350px] gap-5">
       <Card className="panel-card app-hero">
-        <div className="app-hero-content">
-          <p className="app-eyebrow">RoboPlanner</p>
+        <div className="app-hero-inline">
           <h1>Test Timeline Planner</h1>
+          <div className="app-hero-inline-right">
+            <p className="plan-pill">Version {SCENARIO_SCHEMA_VERSION}</p>
+            <div className="app-hero-action-cluster">
+              <ButtonGroup aria-label="Scenario portability actions" className="app-hero-portability-actions">
+                <Button
+                  aria-label="Import scenario"
+                  className="portability-action-button"
+                  type="button"
+                  variant="outline"
+                  onClick={handleImportClick}
+                >
+                  <DownloadIcon aria-hidden="true" />
+                  <span>Import</span>
+                </Button>
+                <Button
+                  aria-label="Export scenario"
+                  className="portability-action-button"
+                  type="button"
+                  variant="outline"
+                  onClick={handleExportClick}
+                >
+                  <UploadIcon aria-hidden="true" />
+                  <span>Export</span>
+                </Button>
+              </ButtonGroup>
+              <span aria-hidden="true" className="hero-action-divider" />
+              <Button
+                aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+                className="theme-toggle-button"
+                type="button"
+                variant="outline"
+                onClick={toggleTheme}
+              >
+                {theme === "dark" ? <SunIcon aria-hidden="true" /> : <MoonIcon aria-hidden="true" />}
+                <span>{theme === "dark" ? "Light" : "Dark"}</span>
+              </Button>
+            </div>
+          </div>
         </div>
-        <p className="plan-pill">Version {SCENARIO_SCHEMA_VERSION}</p>
       </Card>
 
       <div className="workspace-grid grid gap-5">
@@ -234,8 +356,6 @@ function App() {
                 setTemplate(steps);
                 setStepGroups(nextStepGroups);
               }}
-              onExportClick={handleExportClick}
-              onImportClick={handleImportClick}
             />
             <input
               ref={importFileInputRef}
@@ -255,7 +375,7 @@ function App() {
           </Card>
 
           <Card className="panel-card utility-card" data-testid="utility-shared-resources-card">
-            <SharedResourcesEditor resources={sharedResources} onChange={setSharedResources} />
+            <SharedResourcesEditor resources={sharedResources} onChange={handleSharedResourcesChange} />
           </Card>
 
           <Card className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
@@ -303,15 +423,17 @@ function App() {
               <p>{visibleSegments.length} segments visible</p>
             </div>
             <div className="viewport-actions" data-testid="timeline-controls">
-              <Label className="checkbox-label timeline-checkbox-label" htmlFor="show-waits">
-                <Checkbox
-                  aria-label="Show wait segments"
-                  checked={showWaits}
-                  id="show-waits"
-                  onCheckedChange={(checked) => setShowWaits(checked === true)}
-                />
-                Show wait segments
-              </Label>
+              <Button
+                aria-label={showWaits ? "Hide wait segments" : "Show wait segments"}
+                aria-pressed={showWaits}
+                className="icon-button"
+                size="icon"
+                type="button"
+                variant="outline"
+                onClick={() => setShowWaits((current) => !current)}
+              >
+                {showWaits ? <EyeIcon aria-hidden="true" /> : <EyeOffIcon aria-hidden="true" />}
+              </Button>
               <ButtonGroup aria-label="Timeline zoom controls" className="timeline-zoom-group">
                 <Button aria-label="Zoom in" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(1.25)}>
                   <ZoomInIcon aria-hidden="true" />

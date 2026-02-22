@@ -135,12 +135,19 @@ function SharedResourcesEditor({ resources, onChange }: SharedResourcesEditorPro
                           <Trash2Icon aria-hidden="true" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>{`Delete ${resource.name}`}</TooltipContent>
+                      <TooltipContent side="right">{`Delete ${resource.name}`}</TooltipContent>
                     </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
+            {resources.length === 0 ? (
+              <TableRow>
+                <TableCell className="shared-resources-empty-state" colSpan={3}>
+                  No shared resources yet.
+                </TableCell>
+              </TableRow>
+            ) : null}
           </TableBody>
         </Table>
       </div>

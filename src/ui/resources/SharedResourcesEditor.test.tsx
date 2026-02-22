@@ -77,4 +77,10 @@ describe("SharedResourcesEditor", () => {
     await user.click(screen.getByRole("button", { name: "Add shared resource" }));
     expect(screen.getAllByTestId("resource-row")).toHaveLength(2);
   });
+
+  it("shows guidance when no shared resources exist", () => {
+    render(<SharedResourcesEditor resources={[]} onChange={() => undefined} />);
+
+    expect(screen.getByText("No shared resources yet.")).toBeTruthy();
+  });
 });

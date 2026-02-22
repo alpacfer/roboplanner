@@ -11,6 +11,7 @@ describe("scenario schema", () => {
       stepGroups: [{ id: "g1", name: "Main", color: "#4e79a7" }],
       runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
       settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      sharedResources: [{ id: "resource-1", name: "Robot arm", quantity: 2 }],
     });
 
     const parsed = deserializeScenarioData(serialized);
@@ -24,6 +25,7 @@ describe("scenario schema", () => {
       stepGroups: [{ id: "g1", name: "Main", color: "#4e79a7" }],
       runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
       settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+      sharedResources: [{ id: "resource-1", name: "Robot arm", quantity: 2 }],
     });
   });
 
@@ -39,6 +41,7 @@ describe("scenario schema", () => {
     expect(migrated.template[0].operatorInvolvement).toBe("WHOLE");
     expect(migrated.template[0].groupId).toBeNull();
     expect(migrated.stepGroups).toEqual([]);
+    expect(migrated.sharedResources).toEqual([]);
   });
 
   it("migrates v2 to v3 and assigns null groupId", () => {
@@ -52,6 +55,36 @@ describe("scenario schema", () => {
     expect(migrated.version).toBe(SCENARIO_SCHEMA_VERSION);
     expect(migrated.template[0].groupId).toBeNull();
     expect(migrated.stepGroups).toEqual([]);
+    expect(migrated.sharedResources).toEqual([]);
+  });
+
+  it("rejects payload with invalid sharedResources data", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: SCENARIO_SCHEMA_VERSION,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+        sharedResources: [{ id: "resource-1", name: "Robot arm", quantity: 0 }],
+      }),
+    ).toThrow("Scenario payload has invalid sharedResources data.");
+  });
+
+  it("rejects payload with duplicate shared resource ids", () => {
+    expect(() =>
+      migrateScenarioData({
+        version: SCENARIO_SCHEMA_VERSION,
+        template: [{ id: "s1", name: "Prep", durationMin: 10, operatorInvolvement: "WHOLE", groupId: null }],
+        stepGroups: [],
+        runs: [{ id: "r1", label: "R1", startMin: 0, templateId: "plan-default" }],
+        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+        sharedResources: [
+          { id: "resource-1", name: "Robot arm", quantity: 1 },
+          { id: "resource-1", name: "Fixture", quantity: 1 },
+        ],
+      }),
+    ).toThrow("Scenario payload has duplicate shared resource ids.");
   });
 
   it("rejects payload with unknown step group reference", () => {

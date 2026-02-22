@@ -131,17 +131,19 @@ describe("App", () => {
       version: number;
       stepGroups: Array<{ id: string }>;
       template: Array<{ groupId: string | null }>;
+      sharedResources: Array<{ id: string; name: string; quantity: number }>;
     };
 
     expect(parsed.version).toBe(SCENARIO_SCHEMA_VERSION);
     expect(parsed.stepGroups).toHaveLength(1);
     expect(parsed.template.some((step) => step.groupId === parsed.stepGroups[0]?.id)).toBe(true);
+    expect(Array.isArray(parsed.sharedResources)).toBe(true);
     expect(screen.getByTestId("scenario-status").textContent).toContain("Scenario downloaded");
 
     anchorClick.mockRestore();
   });
 
-  it("imports scenario and updates template editor state", async () => {
+  it("imports scenario and updates full app state", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -159,8 +161,12 @@ describe("App", () => {
           },
         ],
         stepGroups: [{ id: "g1", name: "Main", color: "#00ff00" }],
-        runs: [{ id: "run-1", label: "R1", startMin: 0, templateId: "plan-default" }],
-        settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+        runs: [
+          { id: "run-1", label: "R1", startMin: 0, templateId: "plan-default" },
+          { id: "run-2", label: "R2", startMin: 5, templateId: "plan-default" },
+        ],
+        settings: { operatorCapacity: 2, queuePolicy: "FIFO" },
+        sharedResources: [{ id: "resource-1", name: "Robot arm", quantity: 3 }],
       },
       null,
       2,
@@ -173,6 +179,9 @@ describe("App", () => {
 
     expect(screen.getAllByTestId("template-group-card")).toHaveLength(1);
     expect(screen.getByTestId("template-state").textContent).toContain('"groupId":"g1"');
+    expect(screen.getByTestId("runs-state").textContent).toContain('"id":"run-2"');
+    expect((screen.getByLabelText("Operator capacity") as HTMLInputElement).value).toBe("2");
+    expect((screen.getByLabelText("Shared resource name 1") as HTMLInputElement).value).toBe("Robot arm");
     expect(screen.getByTestId("scenario-status").textContent).toContain("Scenario imported from scenario.json.");
   });
 
@@ -264,5 +273,33 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Add test" }));
     const nextHeight = Number.parseInt((screen.getByTestId("timeline-box") as HTMLDivElement).style.height, 10);
     expect(nextHeight).toBeGreaterThan(initialHeight);
+  });
+
+  it("removes deleted shared resources from all step assignments", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add step at top level position 1" }));
+    await user.click(screen.getByRole("button", { name: "Add shared resource" }));
+
+    await user.click(screen.getByLabelText("Resources step-1"));
+    await user.click(screen.getByRole("option", { name: "Resource 1" }));
+    await user.keyboard("{Escape}");
+
+    const templateBeforeDelete = JSON.parse(screen.getByTestId("template-state").textContent ?? "[]") as Array<{
+      id: string;
+      resourceIds?: string[];
+    }>;
+    expect(templateBeforeDelete.find((step) => step.id === "step-1")?.resourceIds).toEqual(["resource-1"]);
+
+    await user.click(screen.getByRole("button", { name: "Delete shared resource 1" }));
+    await user.click(screen.getByRole("button", { name: "Confirm Delete shared resource?" }));
+
+    const templateAfterDelete = JSON.parse(screen.getByTestId("template-state").textContent ?? "[]") as Array<{
+      id: string;
+      resourceIds?: string[];
+    }>;
+    expect(templateAfterDelete.find((step) => step.id === "step-1")?.resourceIds).toEqual([]);
   });
 });

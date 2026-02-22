@@ -40,7 +40,7 @@ describe("selector guard", () => {
 
     const operatorInvolvement = screen.getByLabelText(/^Operator involvement step-\d+$/);
     expect(operatorInvolvement).toBeTruthy();
-    expect(operatorInvolvement.tagName).toBe("INPUT");
+    expect(operatorInvolvement.tagName).toBe("BUTTON");
 
     await user.click(screen.getByRole("button", { name: "Simulate" }));
 

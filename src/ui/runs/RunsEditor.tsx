@@ -135,7 +135,7 @@ function RunsEditor({ runs, templateId, onChange }: RunsEditorProps) {
                             </Button>
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent>{`Delete run ${run.label}`}</TooltipContent>
+                        <TooltipContent side="right">{`Delete run ${run.label}`}</TooltipContent>
                       </Tooltip>
                       {errors.length > 0 ? (
                         <ul className="inline-errors run-inline-errors">

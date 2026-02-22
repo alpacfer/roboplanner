@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Step, StepGroup } from "../../domain/types";
 import TemplateEditor from "./TemplateEditor";
 
@@ -38,8 +38,6 @@ function TestHarness() {
           setSteps(nextSteps);
           setStepGroups(nextStepGroups);
         }}
-        onExportClick={vi.fn()}
-        onImportClick={vi.fn()}
       />
       <pre data-testid="steps-state">{JSON.stringify(steps)}</pre>
       <pre data-testid="groups-state">{JSON.stringify(stepGroups)}</pre>
@@ -80,6 +78,31 @@ describe("TemplateEditor", () => {
 
     expect(screen.getByRole("button", { name: "Add step in Sequence 1 at position 1" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Add sequence in Sequence/ })).toBeNull();
+  });
+
+  it("expands a collapsed sequence when clicking the card surface", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add sequence at top level position 1" }));
+    await user.click(screen.getByRole("button", { name: "Collapse sequence Sequence 1" }));
+    expect(screen.queryByTestId("group-body-group-1")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("template-group-card"));
+    expect(await screen.findByTestId("group-body-group-1")).toBeTruthy();
+  });
+
+  it("collapses an expanded sequence when clicking the header surface", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add sequence at top level position 1" }));
+    expect(screen.getByTestId("group-body-group-1")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("group-header-group-1"));
+    expect(screen.queryByTestId("group-body-group-1")).toBeNull();
   });
 
   it("sequence move arrows reorder against standalone blocks", async () => {
@@ -182,11 +205,11 @@ describe("TemplateEditor", () => {
     expect(screen.queryByLabelText("Sequence color menu Sequence 1")).toBeNull();
   });
 
-  it("renders operator involvement as a combobox input", () => {
+  it("renders operator involvement as a select trigger", () => {
     render(<TestHarness />);
 
     const involvement = screen.getByLabelText("Operator involvement step-1");
-    expect(involvement.tagName).toBe("INPUT");
+    expect(involvement.tagName).toBe("BUTTON");
   });
 
   it("supports selecting multiple shared resources for a step", async () => {
@@ -198,5 +221,17 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByRole("option", { name: "Fixture" }));
 
     expect(readSteps()[0]?.resourceIds).toEqual(["resource-1", "resource-2"]);
+  });
+
+  it("hides shared resource placeholder after at least one resource is selected", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    expect(screen.getByPlaceholderText("Add a shared resource.")).toBeTruthy();
+
+    await user.click(screen.getByLabelText("Resources step-1"));
+    await user.click(screen.getByRole("option", { name: "Robot arm" }));
+
+    expect(screen.queryByPlaceholderText("Add a shared resource.")).toBeNull();
   });
 });

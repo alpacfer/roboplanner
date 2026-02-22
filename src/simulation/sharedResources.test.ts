@@ -155,4 +155,31 @@ describe("simulateDES shared resources", () => {
     const r2Wait = segments.find((segment) => segment.kind === "wait" && segment.runId === "R2");
     expect(r2Wait).toEqual(expect.objectContaining({ name: "wait: operator/resources", startMin: 0, endMin: 6 }));
   });
+
+  it("does not deadlock when END checkpoints are queued behind START requests waiting on held resources", () => {
+    const plan = basePlan({
+      template: [
+        { id: "s-end", name: "END + resource", durationMin: 1, operatorInvolvement: "END", groupId: null, resourceIds: ["res-a", "res-b"] },
+        { id: "s-auto", name: "Auto", durationMin: 1, operatorInvolvement: "NONE", groupId: null, resourceIds: [] },
+      ],
+      runs: [
+        { id: "R1", label: "R1", startMin: 0, templateId: "shared-plan" },
+        { id: "R2", label: "R2", startMin: 0, templateId: "shared-plan" },
+        { id: "R3", label: "R3", startMin: 0, templateId: "shared-plan" },
+      ],
+      sharedResources: [
+        { id: "res-a", name: "Res A", quantity: 1 },
+        { id: "res-b", name: "Res B", quantity: 1 },
+      ],
+      settings: { operatorCapacity: 1, queuePolicy: "FIFO" },
+    });
+
+    const { segments } = simulateDES(plan);
+    const endStepSegments = stepSegments(segments, "s-end");
+    const autoStepSegments = stepSegments(segments, "s-auto");
+
+    expect(endStepSegments).toHaveLength(3);
+    expect(autoStepSegments).toHaveLength(3);
+    expect(endStepSegments.map((segment) => segment.runId)).toEqual(["R1", "R2", "R3"]);
+  });
 });

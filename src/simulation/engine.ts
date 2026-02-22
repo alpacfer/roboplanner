@@ -392,11 +392,15 @@ export function simulateDES(plan: Plan): SimulationResult {
     }
 
     while (queue.length > 0) {
-      const request = queue[0];
+      // END checkpoints must be serviced ahead of START requests so finished steps
+      // can release held resources and avoid queue deadlocks.
+      const endRequestIndex = queue.findIndex((request) => request.kind === "END");
+      const requestIndex = endRequestIndex >= 0 ? endRequestIndex : 0;
+      const request = queue[requestIndex];
       const state = runStates.get(request.runId)!;
       const step = plan.template[request.stepIndex];
       if (!step || state.stepIndex !== request.stepIndex) {
-        queue.shift();
+        queue.splice(requestIndex, 1);
         continue;
       }
 
@@ -405,7 +409,7 @@ export function simulateDES(plan: Plan): SimulationResult {
           break;
         }
 
-        queue.shift();
+        queue.splice(requestIndex, 1);
         addWaitIfNeeded(request.runId, request.queuedAtMin, currentMin, request.waitReason);
         events.push({
           timeMin: currentMin,
@@ -430,7 +434,7 @@ export function simulateDES(plan: Plan): SimulationResult {
         break;
       }
 
-      queue.shift();
+      queue.splice(requestIndex, 1);
       addWaitIfNeeded(request.runId, request.queuedAtMin, currentMin, request.waitReason);
       events.push({
         timeMin: currentMin,

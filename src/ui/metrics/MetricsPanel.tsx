@@ -26,11 +26,11 @@ function MetricsPanel({ metrics }: MetricsPanelProps) {
   const totalWaitingMin = metrics?.totalWaitingMin ?? 0;
 
   return (
-    <Card className="metrics-panel">
-      <CardHeader className="pb-2">
+    <Card className="metrics-panel panel-card">
+      <CardHeader className="pb-2 px-0">
         <CardTitle>Metrics</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0">
         <dl className="metrics-grid">
           <div className="metric-tile">
             <dt>Makespan</dt>
