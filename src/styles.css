@@ -241,6 +241,7 @@ p {
 }
 
 .utility-settings-card {
+  grid-column: 1 / -1;
   min-height: 0;
 }
 
@@ -509,7 +510,7 @@ p {
 }
 
 .template-step-title-row.has-color-picker {
-  align-items: flex-end;
+  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
@@ -581,8 +582,23 @@ p {
 
 .operator-select {
   max-width: 100%;
-  min-width: 14ch;
-  width: 14ch;
+  min-width: calc(14ch + 70px);
+  width: calc(14ch + 70px);
+}
+
+.resources-field {
+  margin-left: 0.4rem;
+  min-width: calc(14ch + 70px);
+  width: calc((14ch + 70px) * 2);
+}
+
+.step-resources-chips {
+  min-width: 0;
+  width: 100%;
+}
+
+.step-resources-chip-input {
+  min-width: 7ch;
 }
 
 .sequence-name-field {
@@ -594,6 +610,7 @@ p {
 }
 
 .step-color-field {
+  align-self: flex-end;
   align-items: center;
   display: inline-flex;
   justify-content: center;
@@ -693,6 +710,12 @@ p {
   transform: scale(1);
 }
 
+.template-editor.is-empty-steps .insertion-rail-top-level button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
 .template-portability-footer {
   align-items: center;
   border-top: 1px solid var(--border);
@@ -770,6 +793,68 @@ p {
   border-spacing: 0;
   min-width: 530px;
   width: 100%;
+}
+
+.shared-resources-editor {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.shared-resources-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.shared-resources-add-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.shared-resources-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 530px;
+  width: 100%;
+}
+
+.shared-resources-table th,
+.shared-resources-table td {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.62rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.shared-resources-table th {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.shared-resources-table tr:last-child td {
+  border-bottom: none;
+}
+
+.shared-resource-name-input {
+  min-width: 20ch;
+  width: 100%;
+}
+
+.shared-resource-qty-input {
+  min-width: 7ch;
+  text-align: center;
+  width: 7ch;
+}
+
+.shared-resource-actions-cell {
+  display: grid;
+  gap: 0.36rem;
+  justify-items: start;
 }
 
 .runs-table th,
@@ -1144,6 +1229,10 @@ pre {
   }
 
   .runs-table {
+    min-width: 470px;
+  }
+
+  .shared-resources-table {
     min-width: 470px;
   }
 

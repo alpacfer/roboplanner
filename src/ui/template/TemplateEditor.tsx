@@ -13,24 +13,30 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
-import type { OperatorInvolvement, Step, StepGroup } from "../../domain/types";
+import type { OperatorInvolvement, SharedResource, Step, StepGroup } from "../../domain/types";
 import ConfirmDialog from "../common/ConfirmDialog";
 import IntegerInput from "../common/IntegerInput";
 
 interface TemplateEditorProps {
   steps: Step[];
   stepGroups: StepGroup[];
+  sharedResources: SharedResource[];
   onChange: (payload: { steps: Step[]; stepGroups: StepGroup[] }) => void;
   onImportClick: () => void;
   onExportClick: () => void;
@@ -232,11 +238,45 @@ function SequenceNameInput({ group, onChange }: SequenceNameInputProps) {
   );
 }
 
+interface TopLevelInsertActionsProps {
+  position: number;
+  onAddStep: () => void;
+  onAddSequence: () => void;
+}
+
+function TopLevelInsertActions({ position, onAddStep, onAddSequence }: TopLevelInsertActionsProps) {
+  return (
+    <ButtonGroup aria-label={`Top level insertion controls at position ${position}`} className="insertion-action-group">
+      <Button
+        aria-label={`Add step at top level position ${position}`}
+        className="insertion-action-button"
+        size="xs"
+        type="button"
+        variant="ghost"
+        onClick={onAddStep}
+      >
+        Add step
+      </Button>
+      <Button
+        aria-label={`Add sequence at top level position ${position}`}
+        className="insertion-action-button"
+        size="xs"
+        type="button"
+        variant="ghost"
+        onClick={onAddSequence}
+      >
+        Add sequence
+      </Button>
+    </ButtonGroup>
+  );
+}
+
 interface StepItemProps {
   step: Step;
   isGrouped: boolean;
   stepIndex: number;
   errors: string[];
+  sharedResources: SharedResource[];
   canMoveUp: boolean;
   canMoveDown: boolean;
   onUpdate: (stepId: string, next: Step) => void;
@@ -249,6 +289,7 @@ function StepItem({
   isGrouped,
   stepIndex,
   errors,
+  sharedResources,
   canMoveUp,
   canMoveDown,
   onUpdate,
@@ -258,6 +299,26 @@ function StepItem({
   const [isStepColorMenuOpen, setIsStepColorMenuOpen] = useState(false);
   const stepColor = normalizeStepColor(step.color);
   const { ref: stepNameRef, hasOverflow: stepNameOverflow } = useOverflowTitle<HTMLInputElement>(step.name);
+  const resourceOptions = useMemo(
+    () =>
+      sharedResources.map((resource) => ({
+        id: resource.id,
+        label: resource.name,
+      })),
+    [sharedResources],
+  );
+  const resourceOptionById = useMemo(
+    () => Object.fromEntries(resourceOptions.map((option) => [option.id, option])),
+    [resourceOptions],
+  );
+  const selectedResourceOptions = (step.resourceIds ?? []).map(
+    (resourceId) =>
+      resourceOptionById[resourceId] ?? {
+        id: resourceId,
+        label: resourceId,
+      },
+  );
+  const resourceAnchor = useComboboxAnchor();
 
   return (
     <article
@@ -403,6 +464,49 @@ function StepItem({
             </Combobox>
           </label>
 
+          <label className="field-row resources-field">
+            <span>Shared resources</span>
+            <Combobox
+              autoHighlight
+              itemToStringValue={(resource) => resource.label}
+              items={resourceOptions}
+              multiple
+              value={selectedResourceOptions}
+              onValueChange={(nextResources) => {
+                onUpdate(step.id, {
+                  ...step,
+                  resourceIds: nextResources.map((resource) => resource.id),
+                });
+              }}
+            >
+              <ComboboxChips ref={resourceAnchor} className="step-resources-chips w-full">
+                <ComboboxValue>
+                  {(values) => (
+                    <>
+                      {values.map((resource) => (
+                        <ComboboxChip key={resource.id}>{resource.label}</ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput
+                        aria-label={`Resources ${step.id}`}
+                        className="step-resources-chip-input"
+                      />
+                    </>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={resourceAnchor}>
+                <ComboboxEmpty>No resources found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(resource) => (
+                    <ComboboxItem key={resource.id} value={resource}>
+                      {resource.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </label>
+
           <ButtonGroup aria-label={`Actions for step ${stepIndex + 1}`} className="step-header-actions">
             <ButtonGroup>
               <Button
@@ -459,6 +563,7 @@ function StepItem({
 function TemplateEditor({
   steps,
   stepGroups,
+  sharedResources,
   onChange,
   onImportClick,
   onExportClick,
@@ -505,6 +610,7 @@ function TemplateEditor({
     durationMin: 1,
     operatorInvolvement: "NONE",
     groupId,
+    resourceIds: [],
     color: DEFAULT_STEP_COLOR,
   });
 
@@ -720,6 +826,7 @@ function TemplateEditor({
 
   const areAllCollapsed = stepGroups.length > 0 && stepGroups.every((group) => collapsedGroups[group.id]);
   const hasPortabilityStatus = portabilityStatus.trim().length > 0;
+  const hasNoSteps = steps.length === 0;
 
   const toggleCollapseAll = () => {
     if (areAllCollapsed) {
@@ -731,7 +838,7 @@ function TemplateEditor({
   };
 
   return (
-    <section className="template-editor">
+    <section className={`template-editor ${hasNoSteps ? "is-empty-steps" : ""}`}>
       <div className="template-editor-header">
         <div className="template-editor-title-group">
           <h2>Template Steps</h2>
@@ -794,26 +901,11 @@ function TemplateEditor({
 
       <div className="template-flow-grid">
         <div className="insertion-rail insertion-rail-top-level" data-testid="top-level-insert-0">
-          <Button
-            aria-label="Add step at top level position 1"
-            className="insertion-action-button"
-            size="xs"
-            type="button"
-            variant="ghost"
-            onClick={() => insertStepAtTopLevel(0)}
-          >
-            Add step
-          </Button>
-          <Button
-            aria-label="Add sequence at top level position 1"
-            className="insertion-action-button"
-            size="xs"
-            type="button"
-            variant="ghost"
-            onClick={() => insertSequenceAtTopLevel(0)}
-          >
-            Add sequence
-          </Button>
+          <TopLevelInsertActions
+            position={1}
+            onAddSequence={() => insertSequenceAtTopLevel(0)}
+            onAddStep={() => insertStepAtTopLevel(0)}
+          />
         </div>
 
         {topLevelBlocks.map((block, blockIndex) => {
@@ -991,6 +1083,7 @@ function TemplateEditor({
                               canMoveUp={groupInsertIndex > 0}
                               errors={stepErrorsById[groupSteps[groupInsertIndex].id] ?? []}
                               isGrouped
+                              sharedResources={sharedResources}
                               step={groupSteps[groupInsertIndex]}
                               stepIndex={groupInsertIndex}
                               onMove={moveStep}
@@ -1005,26 +1098,11 @@ function TemplateEditor({
                 </article>
 
                 <div className="insertion-rail insertion-rail-top-level" data-testid={`top-level-insert-${blockIndex + 1}`}>
-                  <Button
-                    aria-label={`Add step at top level position ${blockIndex + 2}`}
-                    className="insertion-action-button"
-                    size="xs"
-                    type="button"
-                    variant="ghost"
-                    onClick={() => insertStepAtTopLevel(blockIndex + 1)}
-                  >
-                    Add step
-                  </Button>
-                  <Button
-                    aria-label={`Add sequence at top level position ${blockIndex + 2}`}
-                    className="insertion-action-button"
-                    size="xs"
-                    type="button"
-                    variant="ghost"
-                    onClick={() => insertSequenceAtTopLevel(blockIndex + 1)}
-                  >
-                    Add sequence
-                  </Button>
+                  <TopLevelInsertActions
+                    position={blockIndex + 2}
+                    onAddSequence={() => insertSequenceAtTopLevel(blockIndex + 1)}
+                    onAddStep={() => insertStepAtTopLevel(blockIndex + 1)}
+                  />
                 </div>
               </Fragment>
             );
@@ -1043,6 +1121,7 @@ function TemplateEditor({
                   canMoveUp={blockIndex > 0}
                   errors={stepErrorsById[step.id] ?? []}
                   isGrouped={false}
+                  sharedResources={sharedResources}
                   step={step}
                   stepIndex={stepIndexById[step.id] ?? 0}
                   onMove={moveStep}
@@ -1052,26 +1131,11 @@ function TemplateEditor({
               </article>
 
               <div className="insertion-rail insertion-rail-top-level" data-testid={`top-level-insert-${blockIndex + 1}`}>
-                <Button
-                  aria-label={`Add step at top level position ${blockIndex + 2}`}
-                  className="insertion-action-button"
-                  size="xs"
-                  type="button"
-                  variant="ghost"
-                  onClick={() => insertStepAtTopLevel(blockIndex + 1)}
-                >
-                  Add step
-                </Button>
-                <Button
-                  aria-label={`Add sequence at top level position ${blockIndex + 2}`}
-                  className="insertion-action-button"
-                  size="xs"
-                  type="button"
-                  variant="ghost"
-                  onClick={() => insertSequenceAtTopLevel(blockIndex + 1)}
-                >
-                  Add sequence
-                </Button>
+                <TopLevelInsertActions
+                  position={blockIndex + 2}
+                  onAddSequence={() => insertSequenceAtTopLevel(blockIndex + 1)}
+                  onAddStep={() => insertStepAtTopLevel(blockIndex + 1)}
+                />
               </div>
             </Fragment>
           );

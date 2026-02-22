@@ -11,6 +11,7 @@ describe("selector guard", () => {
     expect(screen.getByRole("heading", { name: "Test Timeline Planner" })).toBeTruthy();
     expect(screen.getByTestId("workspace-main")).toBeTruthy();
     expect(screen.getByTestId("workspace-side")).toBeTruthy();
+    expect(screen.getByTestId("utility-shared-resources-card")).toBeTruthy();
     expect(screen.getByTestId("utility-settings-card")).toBeTruthy();
     expect(screen.getByTestId("utility-metrics-card")).toBeTruthy();
     expect(screen.getByTestId("simulate-button")).toBeTruthy();
@@ -30,6 +31,7 @@ describe("selector guard", () => {
     expect(screen.getByRole("button", { name: "Zoom out" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Fit" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add test" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add shared resource" })).toBeTruthy();
     expect(screen.getByLabelText("Operator capacity")).toBeTruthy();
     expect(screen.getByLabelText("Scenario import file")).toBeTruthy();
 

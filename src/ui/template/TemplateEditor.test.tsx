@@ -12,11 +12,16 @@ const initialSteps: Step[] = [
     durationMin: 10,
     operatorInvolvement: "WHOLE",
     groupId: null,
+    resourceIds: [],
     color: "#4e79a7",
   },
 ];
 
 const initialStepGroups: StepGroup[] = [];
+const sharedResources = [
+  { id: "resource-1", name: "Robot arm", quantity: 2 },
+  { id: "resource-2", name: "Fixture", quantity: 3 },
+];
 
 function TestHarness() {
   const [steps, setSteps] = useState<Step[]>(initialSteps);
@@ -26,6 +31,7 @@ function TestHarness() {
     <>
       <TemplateEditor
         portabilityStatus=""
+        sharedResources={sharedResources}
         stepGroups={stepGroups}
         steps={steps}
         onChange={({ steps: nextSteps, stepGroups: nextStepGroups }) => {
@@ -181,5 +187,16 @@ describe("TemplateEditor", () => {
 
     const involvement = screen.getByLabelText("Operator involvement step-1");
     expect(involvement.tagName).toBe("INPUT");
+  });
+
+  it("supports selecting multiple shared resources for a step", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.click(screen.getByLabelText("Resources step-1"));
+    await user.click(screen.getByRole("option", { name: "Robot arm" }));
+    await user.click(screen.getByRole("option", { name: "Fixture" }));
+
+    expect(readSteps()[0]?.resourceIds).toEqual(["resource-1", "resource-2"]);
   });
 });

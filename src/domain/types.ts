@@ -8,6 +8,7 @@ export interface Step {
   durationMin: number;
   operatorInvolvement: OperatorInvolvement;
   groupId: string | null;
+  resourceIds?: string[];
   requiresOperator?: boolean;
   color?: string;
 }
@@ -23,6 +24,12 @@ export interface Run {
   label: string;
   startMin: number;
   templateId: string;
+}
+
+export interface SharedResource {
+  id: string;
+  name: string;
+  quantity: number;
 }
 
 export interface PlanSettings {
