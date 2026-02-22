@@ -1,17 +1,28 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Maximize2Icon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
-import type { PlanSettings, Run, Segment, SimulationMetrics, Step, StepGroup } from "./domain/types";
+import type {
+  PlanSettings,
+  Run,
+  Segment,
+  SharedResource,
+  SimulationMetrics,
+  Step,
+  StepGroup,
+} from "./domain/types";
 import { simulateDES } from "./simulation/engine";
 import { createInitialPlans } from "./state/planState";
 import { SCENARIO_SCHEMA_VERSION } from "./storage/schema";
 import MetricsPanel from "./ui/metrics/MetricsPanel";
 import IntegerInput from "./ui/common/IntegerInput";
 import { exportScenarioAsDownload, importScenarioFromFile } from "./ui/portability/portability";
+import SharedResourcesEditor from "./ui/resources/SharedResourcesEditor";
 import RunsEditor from "./ui/runs/RunsEditor";
 import TemplateEditor from "./ui/template/TemplateEditor";
 import TimelineSvg, {
@@ -34,6 +45,13 @@ function assignDefaultSequenceColorsInOrder(stepGroups: StepGroup[]): StepGroup[
   }));
 }
 
+function normalizeStepResourceIds(resourceIds: Step["resourceIds"]): string[] {
+  if (!Array.isArray(resourceIds)) {
+    return [];
+  }
+  return resourceIds.filter((resourceId): resourceId is string => typeof resourceId === "string");
+}
+
 function App() {
   const initialPlan = useMemo(() => createInitialPlans()[0], []);
   const [template, setTemplate] = useState<Step[]>(
@@ -42,10 +60,12 @@ function App() {
       operatorInvolvement: normalizeOperatorInvolvement(step),
       groupId: step.groupId ?? null,
       color: normalizeStepColor(step.color),
+      resourceIds: normalizeStepResourceIds(step.resourceIds),
     })),
   );
   const [stepGroups, setStepGroups] = useState<StepGroup[]>(initialPlan.stepGroups ?? []);
   const [runs, setRuns] = useState(initialPlan.runs);
+  const [sharedResources, setSharedResources] = useState<SharedResource[]>([]);
   const [settings, setSettings] = useState<PlanSettings>(initialPlan.settings);
   const [showWaits, setShowWaits] = useState(true);
   const [pxPerMin, setPxPerMin] = useState(10);
@@ -63,6 +83,7 @@ function App() {
       stepGroups,
       runs,
       settings,
+      sharedResources,
     });
     setSegments(result.segments);
     setMetrics(result.metrics);
@@ -80,6 +101,7 @@ function App() {
         operatorInvolvement: normalizeOperatorInvolvement(step),
         groupId: step.groupId ?? null,
         color: normalizeStepColor(step.color),
+        resourceIds: normalizeStepResourceIds(step.resourceIds),
       })),
     );
     setStepGroups(assignDefaultSequenceColorsInOrder(payload.stepGroups));
@@ -206,6 +228,7 @@ function App() {
             <TemplateEditor
               portabilityStatus={portabilityStatus}
               stepGroups={stepGroups}
+              sharedResources={sharedResources}
               steps={template}
               onChange={({ steps, stepGroups: nextStepGroups }) => {
                 setTemplate(steps);
@@ -231,16 +254,21 @@ function App() {
             <RunsEditor onChange={setRuns} runs={runs} templateId={initialPlan.id} />
           </Card>
 
+          <Card className="panel-card utility-card" data-testid="utility-shared-resources-card">
+            <SharedResourcesEditor resources={sharedResources} onChange={setSharedResources} />
+          </Card>
+
           <Card className="panel-card utility-card utility-settings-card settings-panel" data-testid="utility-settings-card">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 px-0">
               <CardTitle>Simulation Settings</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="settings-content px-0">
               <div className="settings-fields">
-                <label className="field-row" htmlFor="operator-capacity">
+                <label className="field-row settings-field" htmlFor="operator-capacity">
                   <span>Operator capacity</span>
                   <IntegerInput
                     ariaLabel="Operator capacity"
+                    className="settings-input"
                     min={1}
                     value={settings.operatorCapacity}
                     onCommit={(capacity) => {
@@ -253,15 +281,17 @@ function App() {
                 </label>
               </div>
 
-              <Button
-                className="simulate-button"
-                data-testid="simulate-button"
-                disabled={template.length === 0}
-                type="button"
-                onClick={simulate}
-              >
-                Simulate
-              </Button>
+              <div className="settings-actions">
+                <Button
+                  className="simulate-button"
+                  data-testid="simulate-button"
+                  disabled={template.length === 0}
+                  type="button"
+                  onClick={simulate}
+                >
+                  Simulate
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </aside>
@@ -282,15 +312,17 @@ function App() {
                 />
                 Show wait segments
               </Label>
-              <Button type="button" variant="outline" onClick={() => zoom(1.25)}>
-                Zoom in
-              </Button>
-              <Button type="button" variant="outline" onClick={() => zoom(0.8)}>
-                Zoom out
-              </Button>
-              <Button type="button" variant="outline" onClick={fitToWindow}>
-                Fit
-              </Button>
+              <ButtonGroup aria-label="Timeline zoom controls" className="timeline-zoom-group">
+                <Button aria-label="Zoom in" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(1.25)}>
+                  <ZoomInIcon aria-hidden="true" />
+                </Button>
+                <Button aria-label="Zoom out" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(0.8)}>
+                  <ZoomOutIcon aria-hidden="true" />
+                </Button>
+                <Button aria-label="Fit" className="icon-button" size="icon" type="button" variant="outline" onClick={fitToWindow}>
+                  <Maximize2Icon aria-hidden="true" />
+                </Button>
+              </ButtonGroup>
             </div>
           </div>
           <div
@@ -323,7 +355,7 @@ function App() {
           className="debug-toggle"
           data-testid="debug-drawer-toggle"
           type="button"
-          variant="ghost"
+          variant="default"
           onClick={() => setIsDebugDrawerOpen((current) => !current)}
         >
           {isDebugDrawerOpen ? "Hide developer tools" : "Show developer tools"}

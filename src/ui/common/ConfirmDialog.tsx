@@ -1,11 +1,13 @@
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -51,12 +53,14 @@ function ConfirmDialog({
           <p>{message}</p>
         </DialogDescription>
         <DialogFooter className="confirm-modal-actions">
-          <button aria-label={`Cancel ${title}`} type="button" onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button aria-label={`Confirm ${title}`} className="danger-ghost-button" type="button" onClick={onConfirm}>
+          <DialogClose asChild>
+            <Button aria-label={`Cancel ${title}`} type="button" variant="outline">
+              {cancelLabel}
+            </Button>
+          </DialogClose>
+          <Button aria-label={`Confirm ${title}`} type="button" onClick={onConfirm}>
             {confirmLabel}
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

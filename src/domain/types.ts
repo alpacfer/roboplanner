@@ -8,6 +8,7 @@ export interface Step {
   durationMin: number;
   operatorInvolvement: OperatorInvolvement;
   groupId: string | null;
+  resourceIds?: string[];
   requiresOperator?: boolean;
   color?: string;
 }
@@ -25,6 +26,12 @@ export interface Run {
   templateId: string;
 }
 
+export interface SharedResource {
+  id: string;
+  name: string;
+  quantity: number;
+}
+
 export interface PlanSettings {
   operatorCapacity: number;
   queuePolicy: QueuePolicy;
@@ -37,6 +44,7 @@ export interface Plan {
   stepGroups: StepGroup[];
   runs: Run[];
   settings: PlanSettings;
+  sharedResources?: SharedResource[];
 }
 
 export type SegmentKind = "step" | "wait" | "operator_checkpoint";

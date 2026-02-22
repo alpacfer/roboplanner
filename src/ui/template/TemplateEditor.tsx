@@ -1,18 +1,42 @@
-import { Fragment, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ChevronsDownIcon,
+  ChevronsUpIcon,
+  DownloadIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "../../domain/colors";
 import { validateStepGroups, validateTemplateSteps } from "../../domain/validation";
-import type { OperatorInvolvement, Step, StepGroup } from "../../domain/types";
+import type { OperatorInvolvement, SharedResource, Step, StepGroup } from "../../domain/types";
 import ConfirmDialog from "../common/ConfirmDialog";
 import IntegerInput from "../common/IntegerInput";
 
 interface TemplateEditorProps {
   steps: Step[];
   stepGroups: StepGroup[];
+  sharedResources: SharedResource[];
   onChange: (payload: { steps: Step[]; stepGroups: StepGroup[] }) => void;
   onImportClick: () => void;
   onExportClick: () => void;
@@ -151,11 +175,108 @@ function resolveInsertionStepIndex(
   return steps.length;
 }
 
+function useOverflowTitle<T extends HTMLElement>(value: string) {
+  const ref = useRef<T | null>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      setHasOverflow(false);
+      return;
+    }
+
+    const checkOverflow = () => {
+      setHasOverflow(element.scrollWidth > element.clientWidth + 1);
+    };
+
+    checkOverflow();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [value]);
+
+  return {
+    ref,
+    hasOverflow: hasOverflow && value.trim().length > 0,
+  };
+}
+
+interface SequenceNameInputProps {
+  group: StepGroup;
+  onChange: (name: string) => void;
+}
+
+function SequenceNameInput({ group, onChange }: SequenceNameInputProps) {
+  const { ref, hasOverflow } = useOverflowTitle<HTMLInputElement>(group.name);
+
+  const input = (
+    <Input
+      aria-label={`Sequence name ${group.name}`}
+      placeholder="Sequence name"
+      ref={ref}
+      type="text"
+      value={group.name}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+
+  if (!hasOverflow) {
+    return input;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{input}</TooltipTrigger>
+      <TooltipContent>{group.name}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+interface TopLevelInsertActionsProps {
+  position: number;
+  onAddStep: () => void;
+  onAddSequence: () => void;
+}
+
+function TopLevelInsertActions({ position, onAddStep, onAddSequence }: TopLevelInsertActionsProps) {
+  return (
+    <ButtonGroup aria-label={`Top level insertion controls at position ${position}`} className="insertion-action-group">
+      <Button
+        aria-label={`Add step at top level position ${position}`}
+        className="insertion-action-button"
+        size="xs"
+        type="button"
+        variant="ghost"
+        onClick={onAddStep}
+      >
+        Add step
+      </Button>
+      <Button
+        aria-label={`Add sequence at top level position ${position}`}
+        className="insertion-action-button"
+        size="xs"
+        type="button"
+        variant="ghost"
+        onClick={onAddSequence}
+      >
+        Add sequence
+      </Button>
+    </ButtonGroup>
+  );
+}
+
 interface StepItemProps {
   step: Step;
   isGrouped: boolean;
   stepIndex: number;
   errors: string[];
+  sharedResources: SharedResource[];
   canMoveUp: boolean;
   canMoveDown: boolean;
   onUpdate: (stepId: string, next: Step) => void;
@@ -168,6 +289,7 @@ function StepItem({
   isGrouped,
   stepIndex,
   errors,
+  sharedResources,
   canMoveUp,
   canMoveDown,
   onUpdate,
@@ -176,6 +298,27 @@ function StepItem({
 }: StepItemProps) {
   const [isStepColorMenuOpen, setIsStepColorMenuOpen] = useState(false);
   const stepColor = normalizeStepColor(step.color);
+  const { ref: stepNameRef, hasOverflow: stepNameOverflow } = useOverflowTitle<HTMLInputElement>(step.name);
+  const resourceOptions = useMemo(
+    () =>
+      sharedResources.map((resource) => ({
+        id: resource.id,
+        label: resource.name,
+      })),
+    [sharedResources],
+  );
+  const resourceOptionById = useMemo(
+    () => Object.fromEntries(resourceOptions.map((option) => [option.id, option])),
+    [resourceOptions],
+  );
+  const selectedResourceOptions = (step.resourceIds ?? []).map(
+    (resourceId) =>
+      resourceOptionById[resourceId] ?? {
+        id: resourceId,
+        label: resourceId,
+      },
+  );
+  const resourceAnchor = useComboboxAnchor();
 
   return (
     <article
@@ -185,21 +328,9 @@ function StepItem({
       style={!isGrouped ? ({ "--step-color": stepColor } as CSSProperties) : undefined}
     >
       <div className="template-step-top">
-        <div className={`template-step-title-row ${!isGrouped ? "has-color-picker" : ""}`}>
-          <label className="field-row step-name-field">
-            <span>Step name</span>
-            <Input
-              aria-label={`Step name ${step.id}`}
-              placeholder="Step name"
-              type="text"
-              value={step.name}
-              onChange={(event) => onUpdate(step.id, { ...step, name: event.target.value })}
-            />
-          </label>
-
+        <div className="template-step-title-row has-color-picker">
           {!isGrouped ? (
             <label className="field-row step-color-field">
-              <span>Step color</span>
               <Popover open={isStepColorMenuOpen} onOpenChange={setIsStepColorMenuOpen}>
                 <div className="group-color-picker">
                   <PopoverTrigger asChild>
@@ -208,7 +339,6 @@ function StepItem({
                       aria-label={`Open step color menu ${step.id}`}
                       className="group-color-trigger"
                       style={{ backgroundColor: stepColor }}
-                      title={`Open step color menu for ${step.name}`}
                       type="button"
                     />
                   </PopoverTrigger>
@@ -253,6 +383,34 @@ function StepItem({
             </label>
           ) : null}
 
+          <label className="field-row step-name-field">
+            <span>Step name</span>
+            {stepNameOverflow ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Input
+                    aria-label={`Step name ${step.id}`}
+                    placeholder="Step name"
+                    ref={stepNameRef}
+                    type="text"
+                    value={step.name}
+                    onChange={(event) => onUpdate(step.id, { ...step, name: event.target.value })}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{step.name}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Input
+                aria-label={`Step name ${step.id}`}
+                placeholder="Step name"
+                ref={stepNameRef}
+                type="text"
+                value={step.name}
+                onChange={(event) => onUpdate(step.id, { ...step, name: event.target.value })}
+              />
+            )}
+          </label>
+
           <label className="field-row duration-field">
             <span>Duration</span>
             <div className="duration-input-wrap">
@@ -275,27 +433,82 @@ function StepItem({
 
           <label className="field-row operator-field">
             <span>Operator involvement</span>
-            <NativeSelect
-              aria-label={`Operator involvement ${step.id}`}
-              className="operator-select"
-              value={step.operatorInvolvement}
-              onChange={(event) =>
+            <Combobox
+              items={OPERATOR_INVOLVEMENT_OPTIONS}
+              itemToStringValue={(option) => option.label}
+              value={
+                OPERATOR_INVOLVEMENT_OPTIONS.find((option) => option.value === step.operatorInvolvement) ??
+                OPERATOR_INVOLVEMENT_OPTIONS[0]
+              }
+              onValueChange={(nextValue) => {
+                if (!nextValue) {
+                  return;
+                }
                 onUpdate(step.id, {
                   ...step,
-                  operatorInvolvement: event.target.value as OperatorInvolvement,
-                })
-              }
+                  operatorInvolvement: nextValue.value,
+                });
+              }}
             >
-              {OPERATOR_INVOLVEMENT_OPTIONS.map((option) => (
-                <NativeSelectOption key={option.value} value={option.value}>
-                  {option.label}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              <ComboboxInput aria-label={`Operator involvement ${step.id}`} className="operator-select" />
+              <ComboboxContent>
+                <ComboboxEmpty>No options found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(option) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      {option.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </label>
 
-          {!isGrouped ? (
-            <div className="step-header-actions">
+          <label className="field-row resources-field">
+            <span>Shared resources</span>
+            <Combobox
+              autoHighlight
+              itemToStringValue={(resource) => resource.label}
+              items={resourceOptions}
+              multiple
+              value={selectedResourceOptions}
+              onValueChange={(nextResources) => {
+                onUpdate(step.id, {
+                  ...step,
+                  resourceIds: nextResources.map((resource) => resource.id),
+                });
+              }}
+            >
+              <ComboboxChips ref={resourceAnchor} className="step-resources-chips w-full">
+                <ComboboxValue>
+                  {(values) => (
+                    <>
+                      {values.map((resource) => (
+                        <ComboboxChip key={resource.id}>{resource.label}</ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput
+                        aria-label={`Resources ${step.id}`}
+                        className="step-resources-chip-input"
+                      />
+                    </>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={resourceAnchor}>
+                <ComboboxEmpty>No resources found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(resource) => (
+                    <ComboboxItem key={resource.id} value={resource}>
+                      {resource.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </label>
+
+          <ButtonGroup aria-label={`Actions for step ${stepIndex + 1}`} className="step-header-actions">
+            <ButtonGroup>
               <Button
                 aria-label={`Move step ${stepIndex + 1} up`}
                 disabled={!canMoveUp}
@@ -303,7 +516,7 @@ function StepItem({
                 type="button"
                 onClick={() => onMove(step.id, -1)}
               >
-                ↑
+                <ChevronUpIcon aria-hidden="true" />
               </Button>
               <Button
                 aria-label={`Move step ${stepIndex + 1} down`}
@@ -312,66 +525,29 @@ function StepItem({
                 type="button"
                 onClick={() => onMove(step.id, 1)}
               >
-                ↓
+                <ChevronDownIcon aria-hidden="true" />
               </Button>
-              <Button
-                aria-label={`Delete step ${stepIndex + 1}`}
-                className="group-delete-button icon-button"
-                size="icon"
-                title={`Delete step ${step.name}`}
-                type="button"
-                variant="destructive"
-                onClick={() => onRequestDelete(step.id)}
-              >
-                <span aria-hidden="true" className="icon-glyph">
-                  ×
-                </span>
-              </Button>
-            </div>
-          ) : null}
+            </ButtonGroup>
+            <ButtonGroup>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={`Delete step ${stepIndex + 1}`}
+                    className="delete-action-button icon-button"
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                    onClick={() => onRequestDelete(step.id)}
+                  >
+                    <Trash2Icon aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{`Delete step ${step.name || stepIndex + 1}`}</TooltipContent>
+              </Tooltip>
+            </ButtonGroup>
+          </ButtonGroup>
         </div>
-
-        {isGrouped ? (
-          <Button
-            aria-label={`Delete step ${stepIndex + 1}`}
-            className="icon-button danger-ghost-button step-delete-button"
-            size="icon"
-            title={`Delete step ${step.name}`}
-            type="button"
-            variant="destructive"
-            onClick={() => onRequestDelete(step.id)}
-          >
-            <span aria-hidden="true" className="icon-glyph">
-              ×
-            </span>
-          </Button>
-        ) : null}
       </div>
-
-      {isGrouped ? (
-        <div className="template-step-lower">
-          <div className="row-actions">
-            <Button
-              aria-label={`Move step ${stepIndex + 1} up`}
-              disabled={!canMoveUp}
-              variant="outline"
-              type="button"
-              onClick={() => onMove(step.id, -1)}
-            >
-              ↑
-            </Button>
-            <Button
-              aria-label={`Move step ${stepIndex + 1} down`}
-              disabled={!canMoveDown}
-              variant="outline"
-              type="button"
-              onClick={() => onMove(step.id, 1)}
-            >
-              ↓
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       {errors.length > 0 ? (
         <ul className="inline-errors">
@@ -387,6 +563,7 @@ function StepItem({
 function TemplateEditor({
   steps,
   stepGroups,
+  sharedResources,
   onChange,
   onImportClick,
   onExportClick,
@@ -433,6 +610,7 @@ function TemplateEditor({
     durationMin: 1,
     operatorInvolvement: "NONE",
     groupId,
+    resourceIds: [],
     color: DEFAULT_STEP_COLOR,
   });
 
@@ -589,9 +767,7 @@ function TemplateEditor({
   };
 
   const confirmDeleteAllGroups = () => {
-    const groupIdSet = new Set(stepGroups.map((group) => group.id));
-    const nextSteps = steps.filter((step) => !step.groupId || !groupIdSet.has(step.groupId));
-    emitChange(nextSteps, []);
+    emitChange([], []);
     setCollapsedGroups({});
     setOpenGroupColorMenuId(null);
     setPendingDelete(null);
@@ -642,13 +818,15 @@ function TemplateEditor({
     }
 
     return {
-      title: "Delete all sequences?",
-      message: "All sequences and grouped steps will be deleted. Standalone steps will remain.",
+      title: "Delete all steps and sequences?",
+      message: "All steps and sequences will be deleted.",
       confirmLabel: "Delete all",
     };
   }, [groupsById, pendingDelete, stepById]);
 
   const areAllCollapsed = stepGroups.length > 0 && stepGroups.every((group) => collapsedGroups[group.id]);
+  const hasPortabilityStatus = portabilityStatus.trim().length > 0;
+  const hasNoSteps = steps.length === 0;
 
   const toggleCollapseAll = () => {
     if (areAllCollapsed) {
@@ -660,7 +838,7 @@ function TemplateEditor({
   };
 
   return (
-    <section className="template-editor">
+    <section className={`template-editor ${hasNoSteps ? "is-empty-steps" : ""}`}>
       <div className="template-editor-header">
         <div className="template-editor-title-group">
           <h2>Template Steps</h2>
@@ -668,60 +846,66 @@ function TemplateEditor({
         </div>
 
         <div className="template-editor-actions">
-          <Button
-            aria-label="Import scenario"
-            className="portability-action-button"
-            type="button"
-            variant="outline"
-            onClick={onImportClick}
-          >
-            <span aria-hidden="true" className="icon-glyph">
-              ⤵
-            </span>
-            <span>Import</span>
-          </Button>
-          <Button
-            aria-label={areAllCollapsed ? "Expand all sequences" : "Collapse all sequences"}
-            className="icon-button"
-            disabled={stepGroups.length === 0}
-            size="icon"
-            type="button"
-            variant="outline"
-            onClick={toggleCollapseAll}
-          >
-            <span aria-hidden="true" className="icon-glyph">
-              {areAllCollapsed ? "▾" : "▸"}
-            </span>
-          </Button>
-          <Button
-            aria-label="Delete all sequences"
-            className="icon-button danger-ghost-button"
-            disabled={stepGroups.length === 0}
-            size="icon"
-            type="button"
-            variant="destructive"
-            onClick={() => setPendingDelete({ kind: "all-groups" })}
-          >
-            <span aria-hidden="true" className="icon-glyph">
-              ×
-            </span>
-          </Button>
+          <ButtonGroup aria-label="Template step actions" className="row-actions">
+            <ButtonGroup>
+              <Button
+                aria-label="Import scenario"
+                className="portability-action-button"
+                type="button"
+                variant="outline"
+                onClick={onImportClick}
+              >
+                <DownloadIcon aria-hidden="true" />
+                <span>Import</span>
+              </Button>
+              <Button
+                aria-label="Export scenario"
+                className="portability-action-button"
+                type="button"
+                variant="outline"
+                onClick={onExportClick}
+              >
+                <UploadIcon aria-hidden="true" />
+                <span>Export</span>
+              </Button>
+            </ButtonGroup>
+            <ButtonGroup>
+              <Button
+                aria-label={areAllCollapsed ? "Expand all sequences" : "Collapse all sequences"}
+                className="portability-action-button"
+                disabled={stepGroups.length === 0}
+                type="button"
+                variant="outline"
+                onClick={toggleCollapseAll}
+              >
+                {areAllCollapsed ? <ChevronsDownIcon aria-hidden="true" /> : <ChevronsUpIcon aria-hidden="true" />}
+                <span>{areAllCollapsed ? "Expand all" : "Collapse all"}</span>
+              </Button>
+            </ButtonGroup>
+            <ButtonGroup>
+              <Button
+                aria-label="Delete all steps and sequences"
+                className="delete-action-button icon-button"
+                disabled={stepGroups.length === 0 && steps.length === 0}
+                size="icon"
+                type="button"
+                variant="outline"
+                onClick={() => setPendingDelete({ kind: "all-groups" })}
+              >
+                <Trash2Icon aria-hidden="true" />
+              </Button>
+            </ButtonGroup>
+          </ButtonGroup>
         </div>
       </div>
 
       <div className="template-flow-grid">
         <div className="insertion-rail insertion-rail-top-level" data-testid="top-level-insert-0">
-          <Button aria-label="Add step at top level position 1" type="button" variant="outline" onClick={() => insertStepAtTopLevel(0)}>
-            Add step
-          </Button>
-          <Button
-            aria-label="Add sequence at top level position 1"
-            type="button"
-            variant="outline"
-            onClick={() => insertSequenceAtTopLevel(0)}
-          >
-            Add sequence
-          </Button>
+          <TopLevelInsertActions
+            position={1}
+            onAddSequence={() => insertSequenceAtTopLevel(0)}
+            onAddStep={() => insertStepAtTopLevel(0)}
+          />
         </div>
 
         {topLevelBlocks.map((block, blockIndex) => {
@@ -753,7 +937,7 @@ function TemplateEditor({
                       className="group-toggle-button icon-button"
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => {
                         const nextCollapsed = !collapsed;
                         setCollapsedGroups((current) => ({ ...current, [group.id]: nextCollapsed }));
@@ -762,28 +946,10 @@ function TemplateEditor({
                         }
                       }}
                     >
-                      <span aria-hidden="true" className="icon-glyph">
-                        {collapsed ? "▸" : "▾"}
-                      </span>
+                      {collapsed ? <ChevronsDownIcon aria-hidden="true" /> : <ChevronsUpIcon aria-hidden="true" />}
                     </Button>
 
-                    <label className="field-row sequence-name-field">
-                      <Input
-                        aria-label={`Sequence name ${group.name}`}
-                        placeholder="Sequence name"
-                        type="text"
-                        value={group.name}
-                        onChange={(event) => {
-                          const nextGroups = stepGroups.map((candidate) =>
-                            candidate.id === group.id ? { ...candidate, name: event.target.value } : candidate,
-                          );
-                          emitChange(steps, nextGroups);
-                        }}
-                      />
-                    </label>
-
                     <label className="field-row group-color-field">
-                      <span>Sequence color</span>
                       <Popover
                         open={openGroupColorMenuId === group.id}
                         onOpenChange={(open) => setOpenGroupColorMenuId(open ? group.id : null)}
@@ -838,42 +1004,58 @@ function TemplateEditor({
                       </Popover>
                     </label>
 
-                    {errorCount > 0 ? <Badge className="group-error-pill has-errors">{errorCount} issues</Badge> : null}
-                    <Badge className="group-count-label" variant="secondary">
-                      {groupSteps.length} steps
-                    </Badge>
+                    <label className="field-row sequence-name-field">
+                      <SequenceNameInput
+                        group={group}
+                        onChange={(name) => {
+                          const nextGroups = stepGroups.map((candidate) =>
+                            candidate.id === group.id ? { ...candidate, name } : candidate,
+                          );
+                          emitChange(steps, nextGroups);
+                        }}
+                      />
+                    </label>
 
-                    <div className="group-header-actions">
-                      <Button
-                        aria-label={`Move sequence ${group.name} up`}
-                        disabled={blockIndex === 0}
-                        variant="outline"
-                        type="button"
-                        onClick={() => moveSequence(group.id, -1)}
-                      >
-                        ↑
-                      </Button>
-                      <Button
-                        aria-label={`Move sequence ${group.name} down`}
-                        disabled={blockIndex >= topLevelBlocks.length - 1}
-                        variant="outline"
-                        type="button"
-                        onClick={() => moveSequence(group.id, 1)}
-                      >
-                        ↓
-                      </Button>
-                      <Button
-                        aria-label={`Delete sequence ${group.name}`}
-                        className="group-delete-button icon-button"
-                        size="icon"
-                        type="button"
-                        variant="destructive"
-                        onClick={() => setPendingDelete({ kind: "group", groupId: group.id })}
-                      >
-                        <span aria-hidden="true" className="icon-glyph">
-                          ×
-                        </span>
-                      </Button>
+                    {errorCount > 0 ? <Badge className="group-error-pill has-errors">{errorCount} issues</Badge> : null}
+                    <div className="group-meta-actions">
+                      <Badge className="group-count-label" variant="secondary">
+                        {groupSteps.length} steps
+                      </Badge>
+
+                      <ButtonGroup aria-label={`Actions for sequence ${group.name}`} className="group-header-actions">
+                        <ButtonGroup>
+                          <Button
+                            aria-label={`Move sequence ${group.name} up`}
+                            disabled={blockIndex === 0}
+                            variant="outline"
+                            type="button"
+                            onClick={() => moveSequence(group.id, -1)}
+                          >
+                            <ChevronUpIcon aria-hidden="true" />
+                          </Button>
+                          <Button
+                            aria-label={`Move sequence ${group.name} down`}
+                            disabled={blockIndex >= topLevelBlocks.length - 1}
+                            variant="outline"
+                            type="button"
+                            onClick={() => moveSequence(group.id, 1)}
+                          >
+                            <ChevronDownIcon aria-hidden="true" />
+                          </Button>
+                        </ButtonGroup>
+                        <ButtonGroup>
+                          <Button
+                            aria-label={`Delete sequence ${group.name}`}
+                            className="delete-action-button icon-button"
+                            size="icon"
+                            type="button"
+                            variant="outline"
+                            onClick={() => setPendingDelete({ kind: "group", groupId: group.id })}
+                          >
+                            <Trash2Icon aria-hidden="true" />
+                          </Button>
+                        </ButtonGroup>
+                      </ButtonGroup>
                     </div>
                   </div>
 
@@ -884,8 +1066,10 @@ function TemplateEditor({
                           <div className="insertion-rail insertion-rail-group" data-testid={`group-${group.id}-insert-${groupInsertIndex}`}>
                             <Button
                               aria-label={`Add step in ${group.name} at position ${groupInsertIndex + 1}`}
+                              className="insertion-action-button"
+                              size="xs"
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                               onClick={() => insertStepInSequence(group.id, groupInsertIndex)}
                             >
                               Add step
@@ -899,6 +1083,7 @@ function TemplateEditor({
                               canMoveUp={groupInsertIndex > 0}
                               errors={stepErrorsById[groupSteps[groupInsertIndex].id] ?? []}
                               isGrouped
+                              sharedResources={sharedResources}
                               step={groupSteps[groupInsertIndex]}
                               stepIndex={groupInsertIndex}
                               onMove={moveStep}
@@ -913,22 +1098,11 @@ function TemplateEditor({
                 </article>
 
                 <div className="insertion-rail insertion-rail-top-level" data-testid={`top-level-insert-${blockIndex + 1}`}>
-                  <Button
-                    aria-label={`Add step at top level position ${blockIndex + 2}`}
-                    type="button"
-                    variant="outline"
-                    onClick={() => insertStepAtTopLevel(blockIndex + 1)}
-                  >
-                    Add step
-                  </Button>
-                  <Button
-                    aria-label={`Add sequence at top level position ${blockIndex + 2}`}
-                    type="button"
-                    variant="outline"
-                    onClick={() => insertSequenceAtTopLevel(blockIndex + 1)}
-                  >
-                    Add sequence
-                  </Button>
+                  <TopLevelInsertActions
+                    position={blockIndex + 2}
+                    onAddSequence={() => insertSequenceAtTopLevel(blockIndex + 1)}
+                    onAddStep={() => insertStepAtTopLevel(blockIndex + 1)}
+                  />
                 </div>
               </Fragment>
             );
@@ -947,6 +1121,7 @@ function TemplateEditor({
                   canMoveUp={blockIndex > 0}
                   errors={stepErrorsById[step.id] ?? []}
                   isGrouped={false}
+                  sharedResources={sharedResources}
                   step={step}
                   stepIndex={stepIndexById[step.id] ?? 0}
                   onMove={moveStep}
@@ -956,35 +1131,18 @@ function TemplateEditor({
               </article>
 
               <div className="insertion-rail insertion-rail-top-level" data-testid={`top-level-insert-${blockIndex + 1}`}>
-                <Button
-                  aria-label={`Add step at top level position ${blockIndex + 2}`}
-                  type="button"
-                  variant="outline"
-                  onClick={() => insertStepAtTopLevel(blockIndex + 1)}
-                >
-                  Add step
-                </Button>
-                <Button
-                  aria-label={`Add sequence at top level position ${blockIndex + 2}`}
-                  type="button"
-                  variant="outline"
-                  onClick={() => insertSequenceAtTopLevel(blockIndex + 1)}
-                >
-                  Add sequence
-                </Button>
+                <TopLevelInsertActions
+                  position={blockIndex + 2}
+                  onAddSequence={() => insertSequenceAtTopLevel(blockIndex + 1)}
+                  onAddStep={() => insertStepAtTopLevel(blockIndex + 1)}
+                />
               </div>
             </Fragment>
           );
         })}
       </div>
 
-      <div className="template-portability-footer">
-        <Button aria-label="Export scenario" className="portability-action-button" type="button" variant="outline" onClick={onExportClick}>
-          <span aria-hidden="true" className="icon-glyph">
-            ⤴
-          </span>
-          <span>Export</span>
-        </Button>
+      <div className={`template-portability-footer ${hasPortabilityStatus ? "" : "is-empty"}`}>
         <p className="portability-status" data-testid="scenario-status">
           {portabilityStatus}
         </p>

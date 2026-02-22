@@ -26,12 +26,15 @@ async function readBlobText(blob: Blob): Promise<string> {
 }
 
 describe("App", () => {
-  it("renders template first, utility two-column row, and metrics below timeline", () => {
+  it("renders template first, runs/resources row, settings below, and metrics below timeline", () => {
     render(<App />);
 
     const workspaceMain = screen.getByTestId("workspace-main");
     const utilityRow = screen.getByTestId("workspace-side");
     expect(workspaceMain.compareDocumentPosition(utilityRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(utilityRow).getByRole("heading", { name: "Add Tests in Parallel" })).toBeTruthy();
+    expect(within(utilityRow).getByRole("heading", { name: "Shared Resources" })).toBeTruthy();
+    expect(within(screen.getByTestId("utility-settings-card")).getByText("Simulation Settings")).toBeTruthy();
 
     const timelinePanel = screen.getByTestId("timeline-panel");
     const timelineControls = within(timelinePanel).getByTestId("timeline-controls");
@@ -63,6 +66,7 @@ describe("App", () => {
     const keyPanels = [
       screen.getByTestId("workspace-main"),
       screen.getByTestId("workspace-side"),
+      screen.getByTestId("utility-shared-resources-card"),
       screen.getByTestId("timeline-panel"),
       screen.getByTestId("utility-settings-card"),
       screen.getByTestId("utility-metrics-card"),
@@ -257,7 +261,7 @@ describe("App", () => {
     const initialHeight = Number.parseInt((timelineBox as HTMLDivElement).style.height, 10);
     expect(initialHeight).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Add run" }));
+    await user.click(screen.getByRole("button", { name: "Add test" }));
     const nextHeight = Number.parseInt((screen.getByTestId("timeline-box") as HTMLDivElement).style.height, 10);
     expect(nextHeight).toBeGreaterThan(initialHeight);
   });
