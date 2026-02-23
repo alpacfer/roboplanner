@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DEFAULT_STEP_COLOR } from "../../domain/colors";
 import type { Run, Segment } from "../../domain/types";
 import { segmentWidth, segmentX } from "./scale";
@@ -318,6 +319,61 @@ function TimelineSvg({
     }
   }, [tooltip]);
 
+  const tooltipNode = tooltip ? (
+    <div
+      ref={tooltipRef}
+      className="timeline-tooltip"
+      data-testid="timeline-tooltip"
+      style={{ left: tooltip.left, top: tooltip.top }}
+    >
+      <div className="tooltip-title">{tooltip.segment.name}</div>
+      <div className="tooltip-row">
+        <span className="tooltip-key">Start:</span>
+        <span className="tooltip-value">{tooltip.segment.startMin} min</span>
+      </div>
+      <div className="tooltip-row">
+        <span className="tooltip-key">End:</span>
+        <span className="tooltip-value">{tooltip.segment.endMin} min</span>
+      </div>
+      {tooltip.segment.kind === "step" ? (
+        <>
+          <div className="tooltip-row">
+            <span className="tooltip-key">Duration:</span>
+            <span className="tooltip-value">{tooltip.segment.endMin - tooltip.segment.startMin} min</span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-key">Group:</span>
+            <span className="tooltip-value">
+              {tooltip.segment.stepId ? (stepGroupNamesByStepId[tooltip.segment.stepId] ?? "Unsequenced") : "N/A"}
+            </span>
+          </div>
+        </>
+      ) : null}
+      <div className="tooltip-row">
+        <span className="tooltip-key">Operator:</span>
+        <span
+          className={`tooltip-badge ${
+            tooltip.segment.requiresOperator ? "tooltip-badge-op" : "tooltip-badge-auto"
+          }`}
+        >
+          {involvementLabel(tooltip.segment)}
+        </span>
+      </div>
+      {tooltip.segment.kind === "operator_checkpoint" ? (
+        <div className="tooltip-row">
+          <span className="tooltip-key">Checkpoint:</span>
+          <span className="tooltip-value">{checkpointLabel(tooltip.segment)}</span>
+        </div>
+      ) : null}
+      <div className="tooltip-row tooltip-legacy">
+        Start: {tooltip.segment.startMin} min, End: {tooltip.segment.endMin} min
+      </div>
+      <div className="tooltip-row tooltip-legacy">
+        Requires operator: {tooltip.segment.requiresOperator ? "Yes" : "No"}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="timeline-wrap">
       <svg
@@ -527,60 +583,7 @@ function TimelineSvg({
           );
         })}
       </svg>
-      {tooltip ? (
-        <div
-          ref={tooltipRef}
-          className="timeline-tooltip"
-          data-testid="timeline-tooltip"
-          style={{ left: tooltip.left, top: tooltip.top }}
-        >
-          <div className="tooltip-title">{tooltip.segment.name}</div>
-          <div className="tooltip-row">
-            <span className="tooltip-key">Start:</span>
-            <span className="tooltip-value">{tooltip.segment.startMin} min</span>
-          </div>
-          <div className="tooltip-row">
-            <span className="tooltip-key">End:</span>
-            <span className="tooltip-value">{tooltip.segment.endMin} min</span>
-          </div>
-          {tooltip.segment.kind === "step" ? (
-            <>
-              <div className="tooltip-row">
-                <span className="tooltip-key">Duration:</span>
-                <span className="tooltip-value">{tooltip.segment.endMin - tooltip.segment.startMin} min</span>
-              </div>
-              <div className="tooltip-row">
-                <span className="tooltip-key">Group:</span>
-                <span className="tooltip-value">
-                  {tooltip.segment.stepId ? (stepGroupNamesByStepId[tooltip.segment.stepId] ?? "Unsequenced") : "N/A"}
-                </span>
-              </div>
-            </>
-          ) : null}
-          <div className="tooltip-row">
-            <span className="tooltip-key">Operator:</span>
-            <span
-              className={`tooltip-badge ${
-                tooltip.segment.requiresOperator ? "tooltip-badge-op" : "tooltip-badge-auto"
-              }`}
-            >
-              {involvementLabel(tooltip.segment)}
-            </span>
-          </div>
-          {tooltip.segment.kind === "operator_checkpoint" ? (
-            <div className="tooltip-row">
-              <span className="tooltip-key">Checkpoint:</span>
-              <span className="tooltip-value">{checkpointLabel(tooltip.segment)}</span>
-            </div>
-          ) : null}
-          <div className="tooltip-row tooltip-legacy">
-            Start: {tooltip.segment.startMin} min, End: {tooltip.segment.endMin} min
-          </div>
-          <div className="tooltip-row tooltip-legacy">
-            Requires operator: {tooltip.segment.requiresOperator ? "Yes" : "No"}
-          </div>
-        </div>
-      ) : null}
+      {typeof document === "undefined" ? tooltipNode : createPortal(tooltipNode, document.body)}
     </div>
   );
 }

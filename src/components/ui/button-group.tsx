@@ -10,9 +10,9 @@ const buttonGroupVariants = cva(
     variants: {
       orientation: {
         horizontal:
-          "[&>[data-slot='button']:not(:first-child)]:rounded-l-none [&>[data-slot='button']:not(:last-child)]:rounded-r-none [&>[data-slot='button']:not(:first-child)]:border-l-0",
+          "[&>:is([data-slot='button'],[data-slot='tooltip-trigger']):not(:first-child)]:rounded-l-none [&>:is([data-slot='button'],[data-slot='tooltip-trigger']):not(:last-child)]:rounded-r-none [&>:is([data-slot='button'],[data-slot='tooltip-trigger']):not(:first-child)]:border-l-0",
         vertical:
-          "flex-col [&>[data-slot='button']:not(:first-child)]:rounded-t-none [&>[data-slot='button']:not(:last-child)]:rounded-b-none [&>[data-slot='button']:not(:first-child)]:border-t-0",
+          "flex-col [&>:is([data-slot='button'],[data-slot='tooltip-trigger']):not(:first-child)]:rounded-t-none [&>:is([data-slot='button'],[data-slot='tooltip-trigger']):not(:last-child)]:rounded-b-none [&>:is([data-slot='button'],[data-slot='tooltip-trigger']):not(:first-child)]:border-t-0",
       },
     },
     defaultVariants: {

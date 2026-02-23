@@ -596,6 +596,9 @@ function TemplateEditor({
     onChange({ steps: nextSteps, stepGroups: nextStepGroups });
   };
 
+  const nextTopLevelColor = (): string =>
+    STEP_COLOR_PRESETS[topLevelBlocks.length % STEP_COLOR_PRESETS.length] ?? DEFAULT_STEP_COLOR;
+
   const createStep = (groupId: string | null): Step => ({
     id: nextStepId(steps),
     name: `Step ${steps.length + 1}`,
@@ -603,7 +606,7 @@ function TemplateEditor({
     operatorInvolvement: "NONE",
     groupId,
     resourceIds: [],
-    color: DEFAULT_STEP_COLOR,
+    color: groupId ? DEFAULT_STEP_COLOR : nextTopLevelColor(),
   });
 
   const insertStepAtTopLevel = (blockInsertIndex: number) => {
@@ -614,11 +617,10 @@ function TemplateEditor({
   };
 
   const insertSequenceAtTopLevel = (blockInsertIndex: number) => {
-    const nextGroupColor = STEP_COLOR_PRESETS[stepGroups.length % STEP_COLOR_PRESETS.length] ?? DEFAULT_STEP_COLOR;
     const nextGroup: StepGroup = {
       id: nextStepGroupId(stepGroups),
       name: `Sequence ${stepGroups.length + 1}`,
-      color: nextGroupColor,
+      color: nextTopLevelColor(),
     };
 
     const insertionIndex = resolveInsertionStepIndex(topLevelBlocks, blockInsertIndex, steps, stepIndexById, groupStepsById);

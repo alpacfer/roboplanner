@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DEFAULT_STEP_COLOR, STEP_COLOR_PRESETS, normalizeStepColor } from "./domain/colors";
 import { normalizeOperatorInvolvement } from "./domain/operator";
 import type {
@@ -39,7 +40,7 @@ import TimelineSvg, {
 } from "./ui/timeline/TimelineSvg";
 
 const MIN_PX_PER_MIN = 0.1;
-const MAX_PX_PER_MIN = 40;
+const MAX_PX_PER_MIN = Number.POSITIVE_INFINITY;
 const TIMELINE_TOP_PAD = 18;
 const TIMELINE_AXIS_HEIGHT = 26;
 const TIMELINE_LANE_HEIGHT = 44;
@@ -423,27 +424,68 @@ function App() {
               <p>{visibleSegments.length} segments visible</p>
             </div>
             <div className="viewport-actions" data-testid="timeline-controls">
-              <Button
-                aria-label={showWaits ? "Hide wait segments" : "Show wait segments"}
-                aria-pressed={showWaits}
-                className="icon-button"
-                size="icon"
-                type="button"
-                variant="outline"
-                onClick={() => setShowWaits((current) => !current)}
-              >
-                {showWaits ? <EyeIcon aria-hidden="true" /> : <EyeOffIcon aria-hidden="true" />}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={showWaits ? "Hide wait segments" : "Show wait segments"}
+                    aria-pressed={showWaits}
+                    className="icon-button"
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowWaits((current) => !current)}
+                  >
+                    {showWaits ? <EyeIcon aria-hidden="true" /> : <EyeOffIcon aria-hidden="true" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{showWaits ? "Hide wait segments" : "Show wait segments"}</TooltipContent>
+              </Tooltip>
               <ButtonGroup aria-label="Timeline zoom controls" className="timeline-zoom-group">
-                <Button aria-label="Zoom in" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(1.25)}>
-                  <ZoomInIcon aria-hidden="true" />
-                </Button>
-                <Button aria-label="Zoom out" className="icon-button" size="icon" type="button" variant="outline" onClick={() => zoom(0.8)}>
-                  <ZoomOutIcon aria-hidden="true" />
-                </Button>
-                <Button aria-label="Fit" className="icon-button" size="icon" type="button" variant="outline" onClick={fitToWindow}>
-                  <Maximize2Icon aria-hidden="true" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label="Zoom in"
+                      className="icon-button"
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                      onClick={() => zoom(1.25)}
+                    >
+                      <ZoomInIcon aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Zoom in</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label="Zoom out"
+                      className="icon-button"
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                      onClick={() => zoom(0.8)}
+                    >
+                      <ZoomOutIcon aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Zoom out</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label="Fit"
+                      className="icon-button"
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                      onClick={fitToWindow}
+                    >
+                      <Maximize2Icon aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Fit to view</TooltipContent>
+                </Tooltip>
               </ButtonGroup>
             </div>
           </div>

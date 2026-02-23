@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
+import { STEP_COLOR_PRESETS } from "../../domain/colors";
 import type { Step, StepGroup } from "../../domain/types";
 import TemplateEditor from "./TemplateEditor";
 
@@ -67,6 +68,22 @@ describe("TemplateEditor", () => {
     await user.hover(screen.getByTestId("top-level-insert-2"));
     await user.click(screen.getByRole("button", { name: "Add step at top level position 3" }));
     expect(readSteps()).toHaveLength(3);
+  });
+
+  it("cycles default colors across new top-level sequence and standalone step", async () => {
+    const user = userEvent.setup();
+    render(<TestHarness />);
+
+    await user.hover(screen.getByTestId("top-level-insert-0"));
+    await user.click(screen.getByRole("button", { name: "Add sequence at top level position 1" }));
+    expect(readGroups()[0]?.color).toBe(STEP_COLOR_PRESETS[1]);
+
+    await user.hover(screen.getByTestId("top-level-insert-2"));
+    await user.click(screen.getByRole("button", { name: "Add step at top level position 3" }));
+
+    const standaloneSteps = readSteps().filter((step) => step.groupId === null);
+    expect(standaloneSteps).toHaveLength(2);
+    expect(standaloneSteps[1]?.color).toBe(STEP_COLOR_PRESETS[2]);
   });
 
   it("inside sequences shows step insertion only", async () => {

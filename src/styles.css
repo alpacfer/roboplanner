@@ -1159,7 +1159,7 @@ p {
   padding: 0.62rem 0.72rem;
   pointer-events: none;
   position: fixed;
-  z-index: 30;
+  z-index: 2000;
 }
 
 .tooltip-title {
